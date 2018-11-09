@@ -1,27 +1,22 @@
 use bitcoin::{
     network::{
-        serialize::{serialize, deserialize},
+        serialize::serialize,
     },
-    blockdata::{
-        block::Block,
-        transaction::OutPoint,
-    },
+    blockdata::transaction::OutPoint,
     util::hash::Sha256dHash,
 };
 use protobuf::RepeatedField;
 use grpc;
 use tls_api_native_tls;
-use crossbeam;
-use zmq;
 use bitcoin_rpc_client::{BitcoinRpcApi, SerializedRawTransaction};
+use tokio_core::reactor::Core;
+use futures::{self, Future, Stream, Poll, Async};
 
 use std::{
     error::Error,
-    time::Duration,
     sync::{
         Arc, RwLock,
         atomic::{AtomicBool, Ordering},
-        mpsc::{self, Sender, Receiver},
     },
 };
 
@@ -32,6 +27,7 @@ use walletrpc::{NewAddressRequest, NewAddressResponse, NewChangeAddressRequest, 
                 WalletBalanceRequest, WalletBalanceResponse, AddressType, Utxo as RpcUtxo, OutPoint as RpcOutPoint,
                 UnlockCoinsRequest, UnlockCoinsResponse, ShutdownRequest, ShutdownResponse};
 use accountfactory::{AccountFactory, WalletConfig, BitcoindConfig, LockId};
+use chainntfs::ZMQMessageProducer;
 
 pub const DEFAULT_WALLET_RPC_PORT: u16 = 5051;
 
@@ -182,77 +178,54 @@ impl Wallet for WalletImpl {
     }
 }
 
-pub fn launch_server(wc: WalletConfig, cfg: BitcoindConfig, wallet_rpc_port: u16) {
-    let ac = AccountFactory::new_no_random(wc, cfg.clone()).unwrap();
+struct Shutdown(Arc<AtomicBool>);
 
-    let rw_lock_ac = Arc::new(RwLock::new(ac));
+impl Future for Shutdown {
+    type Item = ();
+    type Error = ();
+
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        match self.0.load(Ordering::Relaxed) {
+            false => {
+                futures::task::current().notify();
+                Ok(Async::NotReady)
+            }
+            true => {
+                info!("Gracefully shutdown...");
+                Ok(Async::Ready(()))
+            }
+        }
+    }
+}
+
+pub fn launch_server(wc: WalletConfig, cfg: BitcoindConfig, wallet_rpc_port: u16) {
+    let af = AccountFactory::new_no_random(wc, cfg.clone()).unwrap();
+    let af = Arc::new(RwLock::new(af));
     let shutdown = Arc::new(AtomicBool::new(false));
 
     let mut server: grpc::ServerBuilder<tls_api_native_tls::TlsAcceptor> = grpc::ServerBuilder::new();
     server.http.set_port(wallet_rpc_port);
-    let wallet_impl = WalletImpl(Arc::clone(&rw_lock_ac), Arc::clone(&shutdown));
+    let wallet_impl = WalletImpl(Arc::clone(&af), Arc::clone(&shutdown));
     server.add_service(WalletServer::new_service_def(wallet_impl));
     server.http.set_cpu_pool_threads(1);
     server.http.set_addr(format!("127.0.0.1:{}", DEFAULT_WALLET_RPC_PORT)).unwrap();
     let _server = server.build().expect("server");
 
-    use std::thread;
-
     info!("wallet server started on port {} {}",
              wallet_rpc_port, "without tls" );
 
-    crossbeam::scope(|scope| {
-        scope.spawn(|| {
-            info!("Connecting to bitcoind server...\n");
+    let mut core = Core::new().unwrap();
+    let handle = core.handle();
 
-            let context = zmq::Context::new();
-            let socket = context.socket(zmq::SUB).unwrap();
-
-            socket.set_subscribe(b"rawblock").unwrap();
-
-            assert!(socket.connect(&cfg.zmq_pub_raw_block).is_ok());
-
-            let (sender, receiver): (Sender<zmq::Message>, Receiver<zmq::Message>) = mpsc::channel();
-            thread::spawn(move || {
-                loop {
-                    let mut msg = zmq::Message::new().unwrap();
-                    socket.recv(&mut msg, 0).unwrap();
-                    // TODO(evg): better error handling
-                    if sender.send(msg).is_err() {
-                        break;
-                    }
-                }
-            });
-
-            let mut request_nbr = 0;
-            loop {
-                if shutdown.load(Ordering::Relaxed) {
-                    info!("Gracefully shutdown...");
-                    break;
-                }
-
-                loop {
-                    if let Ok(msg) = receiver.try_recv() {
-                        if request_nbr % 3 == 0 || request_nbr % 3 == 2 {
-                            info!("Received message {:?}: {}", msg.as_str(), request_nbr);
-                        } else {
-                            let block: Block = deserialize(&*msg).unwrap();
-                            info!("Received new block");
-
-                            let mut guarded_ac = rw_lock_ac.write().unwrap();
-                            guarded_ac.process_wire_block(block);
-                        }
-
-                        request_nbr += 1;
-                    } else {
-                        break;
-                    }
-                }
-
-                thread::sleep(Duration::from_millis(50));
-            }
+    let producer =
+        ZMQMessageProducer::new(&cfg.zmq_pub_raw_block)
+        .for_each(move |block| {
+            let mut af = af.write().unwrap();
+            af.process_wire_block(block);
+            Ok(())
         });
-    });
+    handle.spawn(producer);
+    core.run(Shutdown(Arc::clone(&shutdown))).unwrap();
 }
 
 pub struct WalletClientWrapper {

@@ -38,6 +38,7 @@ extern crate zmq;
 #[macro_use]
 extern crate log;
 extern crate simple_logger;
+extern crate tokio_core;
 
 pub mod mnemonic;
 pub mod error;
@@ -48,3 +49,4 @@ pub mod server;
 pub mod walletrpc;
 pub mod walletrpc_grpc;
 mod db;
+pub mod chainntfs;

@@ -8,6 +8,10 @@ extern crate grpc;
 extern crate rand;
 extern crate log;
 extern crate simple_logger;
+#[macro_use]
+extern crate futures;
+extern crate tokio;
+extern crate tokio_core;
 
 use tc_coblox_bitcoincore::BitcoinCore;
 use testcontainers::{
@@ -20,11 +24,15 @@ use bitcoin::network::{
     serialize::RawEncoder,
 };
 use rand::{Rng, thread_rng};
+use futures::{Future, Poll, Stream, Async};
+use tokio::timer::Interval;
+use tokio_core::reactor::Core;
 
 use std::{
     str::FromStr,
     thread,
-    time::Duration,
+    time::{self, Duration},
+    sync::{Arc, RwLock},
 };
 
 use wallet::{
@@ -32,11 +40,12 @@ use wallet::{
     accountfactory::{AccountFactory, WalletConfig, BitcoindConfig},
     server::{launch_server, WalletClientWrapper, DEFAULT_WALLET_RPC_PORT},
     walletrpc::AddressType,
+    chainntfs::ZMQMessageProducer,
 };
 
-const LAUNCH_SERVER_DELAY_MS: u64 = 3000;
-const SHUTDOWN_SERVER_DELAY_MS: u64 = 2000;
-const ZMQ_BLOCK_NTFN_DELAY_MS: u64 = 1000;
+const LAUNCH_SERVER_DELAY_MS: u64 = 7000;
+const SHUTDOWN_SERVER_DELAY_MS: u64 = 5000;
+const ZMQ_BLOCK_NTFN_DELAY_MS: u64 = 5000;
 
 fn bitcoind_init(node: &Container<DockerCli, BitcoinCore>) -> (BitcoinCoreClient, BitcoindConfig) {
     let host_port = node.get_host_port(18443).unwrap();
@@ -80,6 +89,115 @@ fn tmp_db_path() -> String {
     let suffix: String = thread_rng().gen_ascii_chars().take(10).collect();
     rez.push_str(&suffix);
     rez
+}
+
+struct TestBaseWalletFunctionalityWithTokio {
+    ac: Arc<RwLock<AccountFactory>>,
+    client: BitcoinCoreClient,
+    was_polled: bool,
+    p2wkh_addr: Option<String>,
+    interval: Interval,
+}
+
+impl TestBaseWalletFunctionalityWithTokio {
+    fn new(ac: Arc<RwLock<AccountFactory>>, client: BitcoinCoreClient) -> Self {
+        Self {
+            ac,
+            client,
+            was_polled: false,
+            p2wkh_addr: None,
+            interval: Interval::new_interval(time::Duration::from_millis(300)),
+        }
+    }
+}
+
+impl Future for TestBaseWalletFunctionalityWithTokio {
+    type Item = ();
+    type Error = ();
+
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        if !self.was_polled {
+            {
+                let mut af = self.ac.write().unwrap();
+                let p2pkh_account = af.get_account_mut(AccountAddressType::P2PKH);
+                let addr = p2pkh_account.new_address().unwrap();
+                let change_addr = p2pkh_account.new_change_address().unwrap();
+                self.client.send_to_address(&Address::from_str(&addr).unwrap(), 1.0).unwrap().unwrap();
+                self.client.send_to_address(&Address::from_str(&change_addr).unwrap(), 1.0).unwrap().unwrap();
+            }
+
+            {
+                let mut af = self.ac.write().unwrap();
+                let p2shwh_account = af.get_account_mut(AccountAddressType::P2SHWH);
+                let addr = p2shwh_account.new_address().unwrap();
+                let change_addr = p2shwh_account.new_change_address().unwrap();
+                self.client.send_to_address(&Address::from_str(&addr).unwrap(), 1.0).unwrap().unwrap();
+                self.client.send_to_address(&Address::from_str(&change_addr).unwrap(), 1.0).unwrap().unwrap();
+            }
+
+            let p2wkh_addr = {
+                let mut af = self.ac.write().unwrap();
+                let p2wkh_account = af.get_account_mut(AccountAddressType::P2WKH);
+                let addr = p2wkh_account.new_address().unwrap();
+                let change_addr = p2wkh_account.new_change_address().unwrap();
+                self.client.send_to_address(&Address::from_str(&addr).unwrap(), 1.0).unwrap().unwrap();
+                self.client.send_to_address(&Address::from_str(&change_addr).unwrap(), 1.0).unwrap().unwrap();
+
+                p2wkh_account.new_address().unwrap()
+            };
+            self.was_polled = true;
+            self.p2wkh_addr = Some(p2wkh_addr);
+            self.client.generate(1).unwrap().unwrap();
+
+            try_ready!(self.interval.poll().map_err(|_| {}));
+        }
+
+        // select all available utxos
+        let utxo_list = self.ac.write().unwrap().get_utxo_list();
+        let mut ops = Vec::new();
+        for utxo in &utxo_list {
+            ops.push(utxo.out_point);
+        }
+
+        let tx = self.ac.write().unwrap().make_tx(ops, self.p2wkh_addr.clone().unwrap(), 150_000_000).unwrap();
+
+        // check that generated transaction valid and can be send to blockchain
+        let writer: Vec<u8> = Vec::new();
+        let mut encoder = RawEncoder::new(writer);
+        tx.consensus_encode(&mut encoder).unwrap();
+
+        let txid = self.client.send_raw_transaction(SerializedRawTransaction::from(tx)).unwrap().unwrap();
+        self.client.get_raw_transaction_serialized(&txid).unwrap().unwrap();
+
+        Ok(Async::Ready(()))
+    }
+}
+
+#[test]
+fn test_base_wallet_functionality_with_tokio() {
+    let docker = DockerCli::new();
+    let node = docker.run(BitcoinCore::default());
+    let (client, cfg) = bitcoind_init(&node);
+    client.generate(110).unwrap().unwrap();
+
+    let mut core = Core::new().unwrap();
+    let handle = core.handle();
+
+    let af = AccountFactory::new_no_random(
+        WalletConfig::with_db_path(tmp_db_path()), cfg.clone()).unwrap();
+    let af = Arc::new(RwLock::new(af));
+
+    let test = TestBaseWalletFunctionalityWithTokio::new(Arc::clone(&af), client);
+    let producer =
+        ZMQMessageProducer::new(&cfg.zmq_pub_raw_block)
+            .for_each(move |block| {
+                let mut af = af.write().unwrap();
+                af.process_wire_block(block);
+                Ok(())
+            });
+
+    handle.spawn(producer);
+    core.run(test).unwrap();
 }
 
 #[test]
