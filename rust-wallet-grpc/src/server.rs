@@ -108,7 +108,7 @@ impl WalletImpl {
     fn new_address_helper(&self, req: &NewAddressRequest) -> Result<NewAddressResponse, Box<Error>> {
         let mut resp = NewAddressResponse::new();
         let mut ac = self.af.lock().unwrap();
-        let account = ac.get_account_mut(req.get_addr_type().into());
+        let account = ac.wallet_logic.get_account_mut(req.get_addr_type().into());
         let addr = account.new_address()?;
         resp.set_address(addr);
         Ok(resp)
@@ -117,7 +117,7 @@ impl WalletImpl {
     fn new_change_address(&self, req: &NewChangeAddressRequest) -> Result<NewChangeAddressResponse, Box<Error>> {
         let mut resp = NewChangeAddressResponse::new();
         let mut ac = self.af.lock().unwrap();
-        let account = ac.get_account_mut(req.get_addr_type().into());
+        let account = ac.wallet_logic.get_account_mut(req.get_addr_type().into());
         let addr = account.new_change_address()?;
         resp.set_address(addr);
         Ok(resp)
@@ -132,7 +132,7 @@ impl WalletImpl {
             })
         }
 
-        let tx = self.af.lock().unwrap().make_tx(ops, req.dest_addr, req.amt, req.submit)?;
+        let tx = self.af.lock().unwrap().wallet_logic.make_tx(ops, req.dest_addr, req.amt, req.submit)?;
 
         let mut resp = MakeTxResponse::new();
         resp.set_serialized_raw_tx(serialize(&tx)?);
@@ -140,7 +140,7 @@ impl WalletImpl {
     }
 
     fn send_coins_helper(&self, req: SendCoinsRequest) -> Result<SendCoinsResponse, Box<Error>> {
-        let (tx, lock_id) = self.af.lock().unwrap().send_coins(req.dest_addr, req.amt, req.lock_coins, req.witness_only, req.submit)?;
+        let (tx, lock_id) = self.af.lock().unwrap().wallet_logic.send_coins(req.dest_addr, req.amt, req.lock_coins, req.witness_only, req.submit)?;
 
         let mut resp = SendCoinsResponse::new();
         resp.set_serialized_raw_tx(serialize(&tx).unwrap());
@@ -165,7 +165,7 @@ impl Wallet for WalletImpl {
     fn get_utxo_list(&self, _m: grpc::RequestOptions, _req: GetUtxoListRequest) -> grpc::SingleResponse<GetUtxoListResponse> {
         info!("utxo list was requested");
         let mut resp = GetUtxoListResponse::new();
-        let utxo_list = self.af.lock().unwrap().get_utxo_list();
+        let utxo_list = self.af.lock().unwrap().wallet_logic.get_utxo_list();
         resp.set_utxos(RepeatedField::from_vec(utxo_list.into_iter().map(|utxo| utxo.into()).collect()));
         grpc::SingleResponse::completed(resp)
     }
@@ -173,7 +173,7 @@ impl Wallet for WalletImpl {
     fn wallet_balance(&self, _m: ::grpc::RequestOptions, _req: WalletBalanceRequest) -> grpc::SingleResponse<WalletBalanceResponse> {
         info!("wallet balance was requested");
         let mut resp = WalletBalanceResponse::new();
-        let balance = self.af.lock().unwrap().wallet_balance();
+        let balance = self.af.lock().unwrap().wallet_logic.wallet_balance();
         resp.set_total_balance(balance);
         grpc::SingleResponse::completed(resp)
     }
@@ -182,7 +182,7 @@ impl Wallet for WalletImpl {
         info!("manual(not ZMQ) sync with tip was requested");
 
         let resp = SyncWithTipResponse::new();
-        self.af.lock().unwrap().sync_with_tip();
+        self.af.lock().unwrap().wallet_logic.sync_with_tip();
         grpc::SingleResponse::completed(resp)
     }
 
@@ -198,7 +198,7 @@ impl Wallet for WalletImpl {
 
     fn unlock_coins(&self, _m: grpc::RequestOptions, req: UnlockCoinsRequest) -> grpc::SingleResponse<UnlockCoinsResponse> {
         info!("unlock_coins was requested");
-        self.af.lock().unwrap().unlock_coins(LockId::from(req.lock_id));
+        self.af.lock().unwrap().wallet_logic.unlock_coins(LockId::from(req.lock_id));
 
         let resp = UnlockCoinsResponse::new();
         grpc::SingleResponse::completed(resp)

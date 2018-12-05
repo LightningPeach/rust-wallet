@@ -214,6 +214,11 @@ impl LockGroupMap {
 
 // a factory for TREZOR (BIP44) compatible accounts
 pub struct AccountFactory {
+    pub wallet_logic: WalletLogic,
+    bio: Box<BlockChainIO + Send>,
+}
+
+pub struct WalletLogic {
     master_key: ExtendedPrivKey,
     mnemonic: Mnemonic,
     encrypted: Vec<u8>,
@@ -223,9 +228,6 @@ pub struct AccountFactory {
     #[allow(dead_code)]
     network: Network,
 
-    // TODO(evg): bio
-    bio: Box<BlockChainIO + Send>,
-
     last_seen_block_height: usize,
     op_to_utxo: HashMap<OutPoint, Utxo>,
     next_lock_id: LockId,
@@ -233,7 +235,7 @@ pub struct AccountFactory {
     db: Arc<RwLock<DB>>,
 }
 
-impl Wallet for AccountFactory {
+impl Wallet for WalletLogic {
     fn new_address(&mut self, address_type: AccountAddressType) -> Result<String, Box<Error>> {
         self.get_account_mut(address_type).new_address()
     }
@@ -435,22 +437,45 @@ impl Wallet for AccountFactory {
         }
 
         if submit {
-            self.bio.send_raw_transaction(&tx);
+            // TODO(evg): actix send publish tx message
+            // self.bio.send_raw_transaction(&tx);
+
+            // TODO(evg): probably use publish_tx method
         }
 
         Ok(tx)
     }
 
     fn publish_tx(&self, tx: &Transaction) {
-        self.bio.send_raw_transaction(tx);
+        // TODO(evg): actix send publish tx message
+        // self.bio.send_raw_transaction(tx);
     }
 
     /// Sync from last seen(processed) block
     fn sync_with_tip(&mut self) {
-        let block_height = self.bio.get_block_count();
+//        let block_height = self.bio.get_block_count();
+//
+//        let start_from = self.last_seen_block_height + 1;
+//        self.process_block_range(start_from, block_height as usize);
+        // TODO(evg): actix ??
+    }
+}
 
-        let start_from = self.last_seen_block_height + 1;
-        self.process_block_range(start_from, block_height as usize);
+impl WalletLogic {
+    fn get_account(&self, address_type: AccountAddressType) -> &Account {
+        match address_type {
+            AccountAddressType::P2PKH  => &self.p2pkh_account,
+            AccountAddressType::P2SHWH => &self.p2shwh_account,
+            AccountAddressType::P2WKH  => &self.p2wkh_account,
+        }
+    }
+
+    pub fn get_account_mut(&mut self, address_type: AccountAddressType) -> &mut Account {
+        match address_type {
+            AccountAddressType::P2PKH  => &mut self.p2pkh_account,
+            AccountAddressType::P2SHWH => &mut self.p2shwh_account,
+            AccountAddressType::P2WKH  => &mut self.p2wkh_account,
+        }
     }
 }
 
@@ -515,7 +540,7 @@ impl AccountFactory {
             Arc::clone(&db),
         );
 
-        let mut ac = AccountFactory{
+        let wallet_logic = WalletLogic {
             master_key,
             mnemonic,
             encrypted,
@@ -523,36 +548,40 @@ impl AccountFactory {
             p2shwh_account,
             p2wkh_account,
             network: wc.network,
-            bio,
             last_seen_block_height,
             op_to_utxo,
             next_lock_id: LockId::new(),
             locked_coins: LockGroupMap::new(),
             db,
         };
-        let op_to_utxo = ac.op_to_utxo.clone();
+
+        let mut ac = AccountFactory{
+            wallet_logic,
+            bio,
+        };
+        let op_to_utxo = ac.wallet_logic.op_to_utxo.clone();
         for (_, val) in &op_to_utxo {
-            ac.get_account_mut(val.addr_type.clone()).utxo_list.insert(val.out_point, val.clone());
+            ac.wallet_logic.get_account_mut(val.addr_type.clone()).utxo_list.insert(val.out_point, val.clone());
         }
 
-        let external_secret_key_list = ac.db.read().unwrap().get_external_secret_key_list();
+        let external_secret_key_list = ac.wallet_logic.db.read().unwrap().get_external_secret_key_list();
         for (key_helper, sk) in external_secret_key_list {
-            ac.get_account_mut(key_helper.addr_type.clone()).external_sk_list.push(sk);
+            ac.wallet_logic.get_account_mut(key_helper.addr_type.clone()).external_sk_list.push(sk);
         }
 
-        let external_public_key_list = ac.db.read().unwrap().get_external_public_key_list();
+        let external_public_key_list = ac.wallet_logic.db.read().unwrap().get_external_public_key_list();
         for (key_helper, pk) in external_public_key_list {
-            ac.get_account_mut(key_helper.addr_type.clone()).external_pk_list.push(pk);
+            ac.wallet_logic.get_account_mut(key_helper.addr_type.clone()).external_pk_list.push(pk);
         }
 
-        let internal_secret_key_list = ac.db.read().unwrap().get_internal_secret_key_list();
+        let internal_secret_key_list = ac.wallet_logic.db.read().unwrap().get_internal_secret_key_list();
         for (key_helper, sk) in internal_secret_key_list {
-            ac.get_account_mut(key_helper.addr_type.clone()).internal_sk_list.push(sk);
+            ac.wallet_logic.get_account_mut(key_helper.addr_type.clone()).internal_sk_list.push(sk);
         }
 
-        let internal_public_key_list = ac.db.read().unwrap().get_internal_public_key_list();
+        let internal_public_key_list = ac.wallet_logic.db.read().unwrap().get_internal_public_key_list();
         for (key_helper, pk) in internal_public_key_list {
-            ac.get_account_mut(key_helper.addr_type.clone()).internal_pk_list.push(pk);
+            ac.wallet_logic.get_account_mut(key_helper.addr_type.clone()).internal_pk_list.push(pk);
         }
         Ok(ac)
     }
@@ -581,20 +610,20 @@ impl AccountFactory {
 
     /// get a copy of the master private key
     pub fn master_private (&self) -> ExtendedPrivKey {
-        self.master_key.clone()
+        self.wallet_logic.master_key.clone()
     }
 
     /// get a copy of the master public key
     pub fn master_public (&self) -> ExtendedPubKey {
-        KeyFactory::extended_public_from_private(&self.master_key)
+        KeyFactory::extended_public_from_private(&self.wallet_logic.master_key)
     }
 
     pub fn mnemonic (&self) -> String {
-        self.mnemonic.to_string()
+        self.wallet_logic.mnemonic.to_string()
     }
 
     pub fn encrypted (&self) -> Vec<u8> {
-        self.encrypted.clone()
+        self.wallet_logic.encrypted.clone()
     }
 
     /// get an account
@@ -652,40 +681,28 @@ impl AccountFactory {
         )
     }
 
-    fn get_account(&self, address_type: AccountAddressType) -> &Account {
-        match address_type {
-            AccountAddressType::P2PKH  => &self.p2pkh_account,
-            AccountAddressType::P2SHWH => &self.p2shwh_account,
-            AccountAddressType::P2WKH  => &self.p2wkh_account,
-        }
-    }
-
-    pub fn get_account_mut(&mut self, address_type: AccountAddressType) -> &mut Account {
-        match address_type {
-            AccountAddressType::P2PKH  => &mut self.p2pkh_account,
-            AccountAddressType::P2SHWH => &mut self.p2shwh_account,
-            AccountAddressType::P2WKH  => &mut self.p2wkh_account,
-        }
-    }
-
     pub fn process_tx(&mut self, tx: &Transaction) {
-        let account_list = &mut [&mut self.p2pkh_account, &mut self.p2shwh_account, &mut self.p2wkh_account];
+        let account_list = &mut [
+            &mut self.wallet_logic.p2pkh_account,
+            &mut self.wallet_logic.p2shwh_account,
+            &mut self.wallet_logic.p2wkh_account,
+        ];
 
         for input_index in 0..tx.input.len() {
             let input = &tx.input[input_index];
-            if self.op_to_utxo.contains_key(&input.previous_output) {
+            if self.wallet_logic.op_to_utxo.contains_key(&input.previous_output) {
                 {
                     // remove from account utxo map
-                    let utxo = self.op_to_utxo.get(&input.previous_output).unwrap();
+                    let utxo = self.wallet_logic.op_to_utxo.get(&input.previous_output).unwrap();
                     let mut acc = &mut account_list[usize::from(utxo.addr_type.clone())];
                     let mut utxo_map = &mut acc.utxo_list;
                     utxo_map.remove(&input.previous_output).unwrap();
 
-                    self.db.write().unwrap().delete_utxo(&utxo.out_point);
+                    self.wallet_logic.db.write().unwrap().delete_utxo(&utxo.out_point);
                 }
 
                 // remove from account_factory utxo_map
-                self.op_to_utxo.remove(&input.previous_output).unwrap();
+                self.wallet_logic.op_to_utxo.remove(&input.previous_output).unwrap();
             }
         }
         for account_index in 0..account_list.len() {
@@ -727,7 +744,7 @@ impl AccountFactory {
                                                  account_index as u32, script, AccountAddressType::P2PKH);
 
                             account.grab_utxo(utxo.clone());
-                            self.op_to_utxo.insert(op, utxo);
+                            self.wallet_logic.op_to_utxo.insert(op, utxo);
                         }
                     }
                 }
@@ -745,7 +762,7 @@ impl AccountFactory {
                                                  account_index as u32, script, AccountAddressType::P2SHWH);
 
                             account.grab_utxo(utxo.clone());
-                            self.op_to_utxo.insert(op, utxo);
+                            self.wallet_logic.op_to_utxo.insert(op, utxo);
                         }
                     }
                 }
@@ -763,7 +780,7 @@ impl AccountFactory {
                                                  account_index as u32, script, AccountAddressType::P2WKH);
 
                             account.grab_utxo(utxo.clone());
-                            self.op_to_utxo.insert(op, utxo);
+                            self.wallet_logic.op_to_utxo.insert(op, utxo);
                         }
                     }
                 }
@@ -776,9 +793,9 @@ impl AccountFactory {
             self.process_tx(&tx);
         }
         // TODO(evg): if block_height > self.last_seen_block_height?
-        self.last_seen_block_height = block_height;
+        self.wallet_logic.last_seen_block_height = block_height;
 
-        self.db.write().unwrap().put_last_seen_block_height(block_height as u32);
+        self.wallet_logic.db.write().unwrap().put_last_seen_block_height(block_height as u32);
     }
 
     fn process_block_range(&mut self, left: usize, right: usize) {
