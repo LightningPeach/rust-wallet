@@ -31,7 +31,7 @@ use bitcoin::{
 
     network::constants::Network,
 };
-use secp256k1::{Secp256k1, PublicKey, Message};
+use secp256k1::{Secp256k1, PublicKey, Message as Secp256k1Message};
 
 use std::{
     error::Error,
@@ -212,10 +212,41 @@ impl LockGroupMap {
     }
 }
 
+use std::io;
+use actix::prelude::*;
+
+struct PublishTx;
+
+impl Message for PublishTx {
+    type Result = ();
+}
+
+struct ActixBIO(Box<BlockChainIO + Send>);
+
+impl Actor for ActixBIO {
+    type Context = Context<Self>;
+
+    fn started(&mut self, ctx: &mut Context<Self>) {
+        println!("ActixBIO is alive");
+    }
+
+    fn stopped(&mut self, ctx: &mut Context<Self>) {
+        println!("ActixBIO is stopped");
+    }
+}
+
+impl Handler<PublishTx> for ActixBIO {
+    type Result = ();
+
+    fn handle(&mut self, msg: PublishTx, ctx: &mut Context<Self>) -> Self::Result {
+        println!("PublishTx received");
+    }
+}
+
 // a factory for TREZOR (BIP44) compatible accounts
 pub struct AccountFactory {
     pub wallet_logic: WalletLogic,
-    bio: Box<BlockChainIO + Send>,
+    bio: ActixBIO,
 }
 
 pub struct WalletLogic {
@@ -373,7 +404,7 @@ impl Wallet for WalletLogic {
 
                     // TODO(evg): use SigHashType enum
                     let signature = ctx.sign(
-                        &Message::from(tx.signature_hash(i, &pk_script, 0x1).into_bytes()),
+                        &Secp256k1Message::from(tx.signature_hash(i, &pk_script, 0x1).into_bytes()),
                         &sk,
                     );
 
@@ -398,7 +429,7 @@ impl Wallet for WalletLogic {
                         );
 
                     let signature = ctx.sign(
-                        &Message::from(tx_sig_hash.into_bytes()),
+                        &Secp256k1Message::from(tx_sig_hash.into_bytes()),
                         &sk,
                     );
 
@@ -423,7 +454,7 @@ impl Wallet for WalletLogic {
                         );
 
                     let signature = ctx.sign(
-                        &Message::from(tx_sig_hash.into_bytes()),
+                        &Secp256k1Message::from(tx_sig_hash.into_bytes()),
                         &sk,
                     );
 
@@ -557,7 +588,7 @@ impl AccountFactory {
 
         let mut ac = AccountFactory{
             wallet_logic,
-            bio,
+            bio: ActixBIO(bio),
         };
         let op_to_utxo = ac.wallet_logic.op_to_utxo.clone();
         for (_, val) in &op_to_utxo {
@@ -800,8 +831,8 @@ impl AccountFactory {
 
     fn process_block_range(&mut self, left: usize, right: usize) {
         for i in left..right+1 {
-            let block_hash = self.bio.get_block_hash(i as u32);
-            let block = self.bio.get_block(&block_hash);
+            let block_hash = self.bio.0.get_block_hash(i as u32);
+            let block = self.bio.0.get_block(&block_hash);
             self.process_block(i, &block);
         }
     }

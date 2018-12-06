@@ -28,6 +28,7 @@ extern crate serde;
 extern crate serde_json;
 extern crate log;
 extern crate simple_logger;
+extern crate actix;
 
 pub mod mnemonic;
 pub mod error;
