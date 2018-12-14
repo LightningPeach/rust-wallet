@@ -358,7 +358,6 @@ impl WalletLibraryInterface for WalletLibrary {
             let ctx = Secp256k1::new();
             let sk = account.get_sk(&utxo.key_path);
             let pk = PublicKey::from_secret_key(&ctx, &sk);
-
             // TODO(evg): do not hardcode bitcoin's network param
             match utxo.addr_type {
                 AccountAddressType::P2PKH => {
@@ -631,19 +630,9 @@ impl WalletLibrary {
             wallet_lib.get_account_mut(val.addr_type.clone()).utxo_list.insert(val.out_point, val.clone());
         }
 
-        let external_secret_key_list = wallet_lib.db.read().unwrap().get_external_secret_key_list();
-        for (key_helper, sk) in external_secret_key_list {
-            wallet_lib.get_account_mut(key_helper.addr_type.clone()).external_sk_list.push(sk);
-        }
-
         let external_public_key_list = wallet_lib.db.read().unwrap().get_external_public_key_list();
         for (key_helper, pk) in external_public_key_list {
             wallet_lib.get_account_mut(key_helper.addr_type.clone()).external_pk_list.push(pk);
-        }
-
-        let internal_secret_key_list = wallet_lib.db.read().unwrap().get_internal_secret_key_list();
-        for (key_helper, sk) in internal_secret_key_list {
-            wallet_lib.get_account_mut(key_helper.addr_type.clone()).internal_sk_list.push(sk);
         }
 
         let internal_public_key_list = wallet_lib.db.read().unwrap().get_internal_public_key_list();
