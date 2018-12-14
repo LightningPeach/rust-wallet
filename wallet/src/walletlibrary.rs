@@ -569,7 +569,7 @@ impl WalletLibraryInterface for WalletLibrary {
 
 impl WalletLibrary {
     pub fn new_no_random (wc: WalletConfig) -> Result<WalletLibrary, WalletError> {
-        let (master_key, mnemonic, encrypted, _) =
+        let (master_key, mnemonic, encrypted) =
             KeyFactory::new_master_private_key_no_random (
                 wc.entropy,
                 wc.network,

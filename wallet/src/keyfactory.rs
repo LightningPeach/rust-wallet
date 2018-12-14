@@ -46,13 +46,13 @@ impl KeyFactory {
 
     /// create a new master private key for debug/test purposes
     pub fn new_master_private_key_no_random(entropy: MasterKeyEntropy, network: Network,
-        passphrase: &str, salt: &str) -> Result<(ExtendedPrivKey, Mnemonic, Vec<u8>, Vec<u8>), WalletError> {
+        passphrase: &str, salt: &str) -> Result<(ExtendedPrivKey, Mnemonic, Vec<u8>), WalletError> {
 
         let encrypted = vec!(0u8; entropy as usize);
         let mnemonic = Mnemonic::new(&encrypted, passphrase)?;
         let seed = Seed::new(&mnemonic, salt);
         let key = KeyFactory::master_private_key(network, &seed)?;
-        return Ok((key, mnemonic, encrypted, seed.data()))
+        return Ok((key, mnemonic, encrypted))
     }
 
     /// create a master private key from seed
