@@ -27,13 +27,10 @@ use bitcoin::{
 
     blockdata::transaction::{OutPoint, Transaction, TxIn, TxOut},
     blockdata::script::{Script, Builder},
-    blockdata::block::Block,
 
     network::constants::Network,
-    network::serialize::deserialize,
 };
 use secp256k1::{Secp256k1, PublicKey, Message};
-use hex;
 
 use std::{
     error::Error,
@@ -42,16 +39,12 @@ use std::{
     str::FromStr,
 };
 
-use electrumx_client::{
-    electrumx_client::ElectrumxClient,
-    interface::Electrumx,
-};
 use error::WalletError;
 use mnemonic::Mnemonic;
 use keyfactory::{KeyFactory, MasterKeyEntropy};
 use account::{Account, AccountAddressType, Utxo, KeyPath, AddressChain};
 use db::DB;
-use interface::{WalletLibraryInterface, BlockChainIO};
+use interface::WalletLibraryInterface;
 
 pub static DEFAULT_BITCOIND_RPC_CONNECT: &'static str = "http://127.0.0.1:18332";
 pub static DEFAULT_BITCOIND_RPC_USER: &'static str = "user";

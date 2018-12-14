@@ -21,7 +21,10 @@ use bitcoin::{
     Transaction,
 };
 use bitcoin_rpc_client::{BitcoinCoreClient, BitcoinRpcApi, Address};
-use rand::{Rng, thread_rng};
+use rand::{
+    Rng, thread_rng,
+    distributions::Alphanumeric,
+};
 
 use std::{
     str::FromStr,
@@ -106,7 +109,7 @@ fn restart_wallet_new(client: &WalletClientWrapper, db_path: String, cfg: Bitcoi
 
 fn tmp_db_path() -> String {
     let mut rez: String = "/tmp/test_".to_string();
-    let suffix: String = thread_rng().gen_ascii_chars().take(10).collect();
+    let suffix: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
     rez.push_str(&suffix);
     rez
 }

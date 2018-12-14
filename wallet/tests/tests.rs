@@ -15,7 +15,10 @@ use testcontainers::{
     Docker, Container,
 };
 use bitcoin_rpc_client::{BitcoinCoreClient, BitcoinRpcApi, Address};
-use rand::{Rng, thread_rng};
+use rand::{
+    Rng, thread_rng,
+    distributions::Alphanumeric,
+};
 use bitcoin_core_io::BitcoinCoreIO;
 
 use std::{
@@ -30,7 +33,7 @@ use wallet::{
     walletlibrary::{WalletConfig, BitcoindConfig},
     electrumx::ElectrumxWallet,
     default::WalletWithTrustedFullNode,
-    interface::{WalletLibraryInterface, Wallet},
+    interface::Wallet,
 };
 
 const ELECTRUMX_SERVER_SYNC_WITH_BLOCKCHAIN_DELAY_MS: u64 = 5000;
@@ -58,7 +61,7 @@ fn bitcoind_init(node: &Container<DockerCli, BitcoinCore>) -> (BitcoinCoreClient
 
 fn tmp_db_path() -> String {
     let mut rez: String = "/tmp/test_".to_string();
-    let suffix: String = thread_rng().gen_ascii_chars().take(10).collect();
+    let suffix: String = thread_rng().sample_iter(&Alphanumeric).take(10).collect();
     rez.push_str(&suffix);
     rez
 }
@@ -408,7 +411,7 @@ fn extended_persistent_storage(provider: BlockChainProvider) {
     }
 
     // recover wallet's state from persistent storage
-    let mut wallet = match provider {
+    let wallet = match provider {
         BlockChainProvider::TrustedFullNode => {
             let bio = Box::new(BitcoinCoreIO::new(
                 BitcoinCoreClient::new(&cfg.url, &cfg.user, &cfg.password)));
@@ -603,7 +606,7 @@ fn lock_coins_flag_success(provider: BlockChainProvider) {
     let docker = DockerCli::new();
     let node = docker.run(BitcoinCore::default());
     let (bitcoind_client, cfg, host_port) = bitcoind_init(&node);
-    let mut electrs_process = match provider {
+    let electrs_process = match provider {
         BlockChainProvider::TrustedFullNode => None,
         BlockChainProvider::Electrumx => {
             let mut electrs_process = launch_electrs_process(
@@ -683,7 +686,7 @@ fn lock_coins_flag_fail(provider: BlockChainProvider) {
     let docker = DockerCli::new();
     let node = docker.run(BitcoinCore::default());
     let (bitcoind_client, cfg, host_port) = bitcoind_init(&node);
-    let mut electrs_process = match provider {
+    let electrs_process = match provider {
         BlockChainProvider::TrustedFullNode => None,
         BlockChainProvider::Electrumx => {
             let mut electrs_process = launch_electrs_process(
@@ -760,7 +763,7 @@ fn lock_coins_flag_fail(provider: BlockChainProvider) {
 // TODO(evg): tests for witness_only flag
 
 fn launch_electrs_process(cookie: String, daemon_rpc_addr: String, network: String, db_dir: String) -> Child {
-    let mut electrs_process = Command::new("electrs")
+    let electrs_process = Command::new("electrs")
         .arg("--jsonrpc-import")
         .arg(format!("--cookie={}", cookie))
         .arg(format!("--daemon-rpc-addr={}", daemon_rpc_addr))
