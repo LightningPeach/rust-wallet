@@ -568,13 +568,14 @@ impl WalletLibraryInterface for WalletLibrary {
 }
 
 impl WalletLibrary {
-    pub fn new_no_random (wc: WalletConfig) -> Result<WalletLibrary, WalletError> {
+    pub fn new (wc: WalletConfig, debug: bool) -> Result<WalletLibrary, WalletError> {
         let (master_key, mnemonic, encrypted) =
-            KeyFactory::new_master_private_key_no_random (
+            KeyFactory::new_master_private_key (
                 wc.entropy,
                 wc.network,
                 &wc.passphrase,
                 &wc.salt,
+                debug,
             )?;
 
         let db = DB::new(wc.db_path);

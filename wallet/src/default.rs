@@ -88,8 +88,8 @@ impl WalletWithTrustedFullNode {
 //        })
 //    }
 
-    pub fn new_no_random (wc: WalletConfig, bio: Box<BlockChainIO + Send>) -> Result<WalletWithTrustedFullNode, WalletError> {
-        let wallet_lib = Box::new(WalletLibrary::new_no_random(wc).unwrap());
+    pub fn new(wc: WalletConfig, bio: Box<BlockChainIO + Send>, debug: bool) -> Result<WalletWithTrustedFullNode, WalletError> {
+        let wallet_lib = Box::new(WalletLibrary::new(wc, debug).unwrap());
 
         Ok(WalletWithTrustedFullNode {
             wallet_lib,
