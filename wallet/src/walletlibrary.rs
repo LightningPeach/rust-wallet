@@ -565,8 +565,13 @@ impl WalletLibraryInterface for WalletLibrary {
     }
 }
 
+pub enum WalletLibraryMode {
+    Create,
+    Decrypt,
+}
+
 impl WalletLibrary {
-    pub fn new_no_random (wc: WalletConfig) -> Result<WalletLibrary, WalletError> {
+    pub fn new_no_random (wc: WalletConfig, mode: WalletLibraryMode) -> Result<WalletLibrary, WalletError> {
         let db = DB::new(wc.db_path);
         let last_seen_block_height = db.get_last_seen_block_height();
         let op_to_utxo = db.get_utxo_map();

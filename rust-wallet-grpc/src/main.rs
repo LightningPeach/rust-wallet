@@ -30,7 +30,7 @@ use std::str::FromStr;
 use bitcoin_core_io::BitcoinCoreIO;
 use wallet::{
     walletlibrary::{
-        WalletConfig, BitcoindConfig,
+        WalletConfig, BitcoindConfig, WalletLibraryMode,
         DEFAULT_NETWORK, DEFAULT_ENTROPY, DEFAULT_PASSPHRASE, DEFAULT_SALT, DEFAULT_DB_PATH,
         DEFAULT_BITCOIND_RPC_CONNECT, DEFAULT_BITCOIND_RPC_USER, DEFAULT_BITCOIND_RPC_PASSWORD,
         DEFAULT_ZMQ_PUB_RAW_BLOCK_ENDPOINT, DEFAULT_ZMQ_PUB_RAW_TX_ENDPOINT,
@@ -113,15 +113,16 @@ fn main() {
         matches.value_of("zmqpubrawtx").unwrap().to_string(),
     );
 
+    // TODO(evg): rewrite it; add --create param; use WalletLibraryMode::Decrypt mode as well
     let wallet = if matches.is_present("electrumx") {
         let mut electrumx_wallet: Box<Wallet + Send> = Box::new(ElectrumxWallet::new_no_random(
-            wc).unwrap());
+            wc, WalletLibraryMode::Create).unwrap());
         electrumx_wallet
     } else {
         let bio = Box::new(BitcoinCoreIO::new(
             BitcoinCoreClient::new(&cfg.url, &cfg.user, &cfg.password)));
         let mut default_wallet: Box<Wallet + Send> = Box::new(WalletWithTrustedFullNode::new_no_random(
-            wc, bio).unwrap());
+            wc, bio, WalletLibraryMode::Create).unwrap());
         default_wallet
     };
 

@@ -34,7 +34,7 @@ use std::{
 };
 
 use wallet::{
-    walletlibrary::{WalletConfig, BitcoindConfig},
+    walletlibrary::{WalletConfig, BitcoindConfig, WalletLibraryMode},
     default::WalletWithTrustedFullNode,
     electrumx::ElectrumxWallet,
     interface::Wallet,
@@ -72,7 +72,7 @@ fn bitcoind_init(node: &Container<DockerCli, BitcoinCore>) -> (BitcoinCoreClient
     (bitcoind_client, cfg, host_port)
 }
 
-fn launch_server_and_wait_new(db_path: String, cfg: BitcoindConfig, provider: BlockChainProvider) -> WalletClientWrapper {
+fn launch_server_and_wait_new(db_path: String, cfg: BitcoindConfig, provider: BlockChainProvider, mode: WalletLibraryMode) -> WalletClientWrapper {
     let provider_copy = provider.clone();
     thread::spawn(move || {
         let wallet = match provider_copy {
@@ -80,12 +80,12 @@ fn launch_server_and_wait_new(db_path: String, cfg: BitcoindConfig, provider: Bl
                 let bio = Box::new(BitcoinCoreIO::new(
                     BitcoinCoreClient::new(&cfg.url, &cfg.user, &cfg.password)));
                 let mut default_wallet: Box<Wallet + Send> = Box::new(WalletWithTrustedFullNode::new_no_random(
-                    WalletConfig::with_db_path(db_path), bio).unwrap());
+                    WalletConfig::with_db_path(db_path), bio, mode).unwrap());
                 default_wallet
             }
             BlockChainProvider::Electrumx => {
                 let mut electrumx_wallet: Box<Wallet + Send> = Box::new(ElectrumxWallet::new_no_random(
-                    WalletConfig::with_db_path(db_path)).unwrap());
+                    WalletConfig::with_db_path(db_path), mode).unwrap());
                 electrumx_wallet
             }
         };
@@ -101,9 +101,9 @@ fn shutdown_and_wait(client: &WalletClientWrapper) {
     thread::sleep(Duration::from_millis(SHUTDOWN_SERVER_DELAY_MS));
 }
 
-fn restart_wallet_new(client: &WalletClientWrapper, db_path: String, cfg: BitcoindConfig, provider: BlockChainProvider) -> WalletClientWrapper {
+fn restart_wallet_new(client: &WalletClientWrapper, db_path: String, cfg: BitcoindConfig, provider: BlockChainProvider, mode: WalletLibraryMode) -> WalletClientWrapper {
     shutdown_and_wait(&client);
-    let client = launch_server_and_wait_new(db_path.clone(), cfg.clone(), provider.clone());
+    let client = launch_server_and_wait_new(db_path.clone(), cfg.clone(), provider.clone(), mode);
     client
 }
 
@@ -193,7 +193,8 @@ fn sanity_check(provider: BlockChainProvider) {
     bitcoind_client.generate(110).unwrap().unwrap();
 
     // launch wallet server and initialize wallet client
-    let client = launch_server_and_wait_new(tmp_db_path(), cfg, provider.clone());
+    let client = launch_server_and_wait_new(
+        tmp_db_path(), cfg, provider.clone(), WalletLibraryMode::Create);
 
     // generate wallet address and send money to it
     // sync with blockchain
@@ -234,7 +235,8 @@ fn base_wallet_functionality(provider: BlockChainProvider) {
     bitcoind_client.generate(110).unwrap().unwrap();
 
     // launch wallet server with generated money and initialize wallet client
-    let client = launch_server_and_wait_new(tmp_db_path(), cfg, provider.clone());
+    let client = launch_server_and_wait_new(
+        tmp_db_path(), cfg, provider.clone(), WalletLibraryMode::Create);
     generate_money_for_wallet(&client, &bitcoind_client, provider.clone());
 
     // select all available utxos
@@ -278,7 +280,8 @@ fn base_persistent_storage(provider: BlockChainProvider) {
     let db_path = tmp_db_path();
 
     // launch wallet server and initialize wallet client
-    let client = launch_server_and_wait_new(db_path.clone(), cfg.clone(), provider.clone());
+    let client = launch_server_and_wait_new(
+        db_path.clone(), cfg.clone(), provider.clone(), WalletLibraryMode::Create);
 
     // generate wallet address and send money to it
     let addr = client.new_address(AddressType::P2WKH);
@@ -292,7 +295,8 @@ fn base_persistent_storage(provider: BlockChainProvider) {
 
     // shutdown wallet and recover wallet's state from persistent storage
     // restart_wallet(&client, db_path, cfg);
-    let client = restart_wallet_new(&client, db_path.clone(), cfg.clone(), provider.clone());
+    let client = restart_wallet_new(
+        &client, db_path.clone(), cfg.clone(), provider.clone(), WalletLibraryMode::Decrypt);
 
     // balance should not change after restart
     assert_eq!(client.wallet_balance(), 100_000_000);
@@ -337,11 +341,13 @@ fn extended_persistent_storage(provider: BlockChainProvider) {
     let db_path = tmp_db_path();
 
     // launch wallet server with generated money and initialize wallet client
-    let client = launch_server_and_wait_new(db_path.clone(), cfg.clone(), provider.clone());
+    let client = launch_server_and_wait_new(
+        db_path.clone(), cfg.clone(), provider.clone(), WalletLibraryMode::Create);
     generate_money_for_wallet(&client, &bitcoind_client, provider.clone());
 
     // shutdown wallet and recover wallet's state from persistent storage
-    let client = restart_wallet_new(&client, db_path.clone(), cfg.clone(), provider.clone());
+    let client = restart_wallet_new(
+        &client, db_path.clone(), cfg.clone(), provider.clone(), WalletLibraryMode::Decrypt);
 
     // select all available utxos
     // generate destination address
@@ -370,7 +376,8 @@ fn extended_persistent_storage(provider: BlockChainProvider) {
         thread::sleep(Duration::from_millis(LAUNCH_ELECTRUMX_SERVER_DELAY_MS));
         // reconnect after electrumx server restarting
         // wallet.reconnect();
-        restart_wallet_new(&client, db_path.clone(), cfg.clone(), provider.clone());
+        restart_wallet_new(
+            &client, db_path.clone(), cfg.clone(), provider.clone(), WalletLibraryMode::Decrypt);
     }
     client.sync_with_tip();
 
@@ -378,7 +385,8 @@ fn extended_persistent_storage(provider: BlockChainProvider) {
     assert_eq!(client.wallet_balance(), 600_000_000 - 10_000);
 
     // shutdown wallet and recover wallet's state from persistent storage
-    let client = restart_wallet_new(&client, db_path.clone(), cfg.clone(), provider.clone());
+    let client = restart_wallet_new(
+        &client, db_path.clone(), cfg.clone(), provider.clone(), WalletLibraryMode::Decrypt);
 
     // balance should not change after restart
     assert_eq!(client.wallet_balance(), 600_000_000 - 10_000);
@@ -412,7 +420,8 @@ fn make_tx_call(provider: BlockChainProvider) {
     let db_path = tmp_db_path();
 
     // launch wallet server with generated money and initialize wallet client
-    let client = launch_server_and_wait_new(db_path.clone(), cfg.clone(), provider.clone());
+    let client = launch_server_and_wait_new(
+        db_path.clone(), cfg.clone(), provider.clone(), WalletLibraryMode::Create);
     generate_money_for_wallet(&client, &bitcoind_client, provider.clone());
 
     // select utxo subset
@@ -439,7 +448,8 @@ fn make_tx_call(provider: BlockChainProvider) {
         thread::sleep(Duration::from_millis(LAUNCH_ELECTRUMX_SERVER_DELAY_MS));
         // reconnect after electrumx server restarting
         // wallet.reconnect();
-        restart_wallet_new(&client, db_path.clone(), cfg.clone(), provider.clone());
+        restart_wallet_new(
+            &client, db_path.clone(), cfg.clone(), provider.clone(), WalletLibraryMode::Decrypt);
     }
     client.sync_with_tip();
 
@@ -481,7 +491,8 @@ fn send_coins_call(provider: BlockChainProvider) {
     let db_path = tmp_db_path();
 
     // launch wallet server with generated money and initialize wallet client
-    let client = launch_server_and_wait_new(db_path.clone(), cfg.clone(), provider.clone());
+    let client = launch_server_and_wait_new(
+        db_path.clone(), cfg.clone(), provider.clone(), WalletLibraryMode::Create);
     generate_money_for_wallet(&client, &bitcoind_client, provider.clone());
 
     // generate destination address
@@ -503,7 +514,8 @@ fn send_coins_call(provider: BlockChainProvider) {
         thread::sleep(Duration::from_millis(LAUNCH_ELECTRUMX_SERVER_DELAY_MS));
         // reconnect after electrumx server restarting
         // wallet.reconnect();
-        restart_wallet_new(&client, db_path.clone(), cfg.clone(), provider.clone());
+        restart_wallet_new(
+            &client, db_path.clone(), cfg.clone(), provider.clone(), WalletLibraryMode::Decrypt);
     }
     client.sync_with_tip();
 
@@ -543,7 +555,8 @@ fn lock_coins_flag_success(provider: BlockChainProvider) {
     bitcoind_client.generate(110).unwrap().unwrap();
 
     // launch wallet server with generated money and initialize wallet client
-    let client = launch_server_and_wait_new(tmp_db_path(), cfg.clone(), provider.clone());
+    let client = launch_server_and_wait_new(
+        tmp_db_path(), cfg.clone(), provider.clone(), WalletLibraryMode::Create);
     generate_money_for_wallet(&client, &bitcoind_client, provider.clone());
 
     // generate destination address
@@ -606,7 +619,8 @@ fn lock_coins_flag_fail(provider: BlockChainProvider) {
     bitcoind_client.generate(110).unwrap().unwrap();
 
     // launch wallet server with generated money and initialize wallet client
-    let client = launch_server_and_wait_new(tmp_db_path(), cfg.clone(), provider.clone());
+    let client = launch_server_and_wait_new(
+        tmp_db_path(), cfg.clone(), provider.clone(), WalletLibraryMode::Create);
     generate_money_for_wallet(&client, &bitcoind_client, provider.clone());
 
     // generate destination address

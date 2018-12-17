@@ -16,7 +16,7 @@ use bitcoin::{Block, Transaction, OutPoint};
 
 use std::error::Error;
 
-use walletlibrary::{WalletLibrary, WalletConfig, LockId};
+use walletlibrary::{WalletLibrary, WalletConfig, LockId, WalletLibraryMode};
 use interface::{BlockChainIO, WalletLibraryInterface, Wallet};
 use error::WalletError;
 
@@ -88,8 +88,8 @@ impl WalletWithTrustedFullNode {
 //        })
 //    }
 
-    pub fn new_no_random (wc: WalletConfig, bio: Box<BlockChainIO + Send>) -> Result<WalletWithTrustedFullNode, WalletError> {
-        let wallet_lib = Box::new(WalletLibrary::new_no_random(wc).unwrap());
+    pub fn new_no_random (wc: WalletConfig, bio: Box<BlockChainIO + Send>, mode: WalletLibraryMode) -> Result<WalletWithTrustedFullNode, WalletError> {
+        let wallet_lib = Box::new(WalletLibrary::new_no_random(wc, mode).unwrap());
 
         Ok(WalletWithTrustedFullNode {
             wallet_lib,
