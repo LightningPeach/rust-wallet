@@ -575,11 +575,8 @@ impl WalletLibrary {
         let db = DB::new(wc.db_path);
         let last_seen_block_height = db.get_last_seen_block_height();
         let op_to_utxo = db.get_utxo_map();
-        let master_key = match db.get_extended_secret_master_key() {
-            Some(master_key) => {
-                master_key
-            },
-            None => {
+        let master_key = match mode {
+            WalletLibraryMode::Create => {
                 let (master_key, mnemonic, encrypted) =
                     KeyFactory::new_master_private_key_no_random (
                         wc.entropy,
@@ -589,7 +586,8 @@ impl WalletLibrary {
                     )?;
                 db.put_extended_secret_master_key(master_key);
                 master_key
-            }
+            },
+            WalletLibraryMode::Decrypt => db.get_extended_secret_master_key().unwrap()
         };
         let db = Arc::new(RwLock::new(db));
 
