@@ -213,8 +213,8 @@ impl LockGroupMap {
 
 pub struct WalletLibrary {
     master_key: ExtendedPrivKey,
-    mnemonic: Mnemonic,
-    encrypted: Vec<u8>,
+    // mnemonic: Mnemonic,
+    // encrypted: Vec<u8>,
     p2pkh_account: Account,
     p2shwh_account: Account,
     p2wkh_account: Account,
@@ -569,18 +569,28 @@ impl WalletLibraryInterface for WalletLibrary {
 
 impl WalletLibrary {
     pub fn new (wc: WalletConfig, debug: bool) -> Result<WalletLibrary, WalletError> {
-        let (master_key, mnemonic, encrypted) =
-            KeyFactory::new_master_private_key (
-                wc.entropy,
-                wc.network,
-                &wc.passphrase,
-                &wc.salt,
-                debug,
-            )?;
-
         let db = DB::new(wc.db_path);
         let last_seen_block_height = db.get_last_seen_block_height();
         let op_to_utxo = db.get_utxo_map();
+        let master_key = match db.get_extended_secret_master_key() {
+            Some(master_key) => {
+                println!("RESTORED: {}", master_key);
+                master_key
+            },
+            None => {
+                let (master_key, mnemonic, encrypted) =
+                    KeyFactory::new_master_private_key (
+                        wc.entropy,
+                        wc.network,
+                        &wc.passphrase,
+                        &wc.salt,
+                        true,
+                    )?;
+                db.put_extended_secret_master_key(master_key);
+                println!("GENERATED: {}", master_key);
+                master_key
+            }
+        };
         let db = Arc::new(RwLock::new(db));
 
         let p2pkh_account = WalletLibrary::new_account(
@@ -609,8 +619,8 @@ impl WalletLibrary {
 
         let mut wallet_lib = WalletLibrary {
             master_key,
-            mnemonic,
-            encrypted,
+            // mnemonic,
+            // encrypted,
             p2pkh_account,
             p2shwh_account,
             p2wkh_account,
@@ -666,13 +676,13 @@ impl WalletLibrary {
         KeyFactory::extended_public_from_private(&self.master_key)
     }
 
-    pub fn mnemonic (&self) -> String {
-        self.mnemonic.to_string()
-    }
-
-    pub fn encrypted (&self) -> Vec<u8> {
-        self.encrypted.clone()
-    }
+//    pub fn mnemonic (&self) -> String {
+//        self.mnemonic.to_string()
+//    }
+//
+//    pub fn encrypted (&self) -> Vec<u8> {
+//        self.encrypted.clone()
+//    }
 
     /// get an account
     pub fn extract_account_key(

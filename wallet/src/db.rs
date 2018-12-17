@@ -12,19 +12,26 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use bitcoin::OutPoint;
+use bitcoin::{
+    OutPoint,
+    util::bip32::ExtendedPrivKey,
+};
 use secp256k1::{Secp256k1, PublicKey};
 use rocksdb::{DB as RocksDB, ColumnFamilyDescriptor, Options, IteratorMode};
 use byteorder::{ByteOrder, BigEndian};
 use serde_json;
 
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    str::{self, FromStr},
+};
 
 use account::{Utxo, SecretKeyHelper, AccountAddressType};
 use walletlibrary::{LockId, LockGroup};
 
 static LAST_SEEN_BLOCK_HEIGHT: &'static [u8] = b"lsbh";
 static UTXO_MAP_CF: &'static str = "utxo_map";
+static EXTENDED_SECRET_MASTER_KEY: &'static [u8] = b"master";
 static EXTERNAL_PUBLIC_KEY_CF: &'static str = "epkcf";
 static INTERNAL_PUBLIC_KEY_CF: &'static str = "ipkcf";
 static P2PKH_ADDRESS_CF:  &'static str = "p2pkh";
@@ -115,6 +122,20 @@ impl DB {
         let key = serde_json::to_vec(op).unwrap();
         let cf = self.0.cf_handle(UTXO_MAP_CF).unwrap();
         self.0.delete_cf(cf, key.as_slice()).unwrap();
+    }
+
+    pub fn get_extended_secret_master_key(&self) -> Option<ExtendedPrivKey> {
+        self.0.get(EXTENDED_SECRET_MASTER_KEY)
+            .unwrap()
+            .map(|val| {
+                let base58 = str::from_utf8(&*val).unwrap();
+                ExtendedPrivKey::from_str(base58).unwrap()
+            })
+    }
+
+    pub fn put_extended_secret_master_key(&self, master_key: ExtendedPrivKey) {
+        let base58 = format!("{}", master_key);
+        self.0.put(EXTENDED_SECRET_MASTER_KEY, base58.as_bytes()).unwrap();
     }
 
     pub fn get_external_public_key_list(&self) -> Vec<(SecretKeyHelper, PublicKey)> {
