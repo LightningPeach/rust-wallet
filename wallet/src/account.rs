@@ -401,7 +401,7 @@ mod test {
         ];
 
         let wc = WalletConfigBuilder::new()
-            .db_path("/tmp/test_p2pkh_public_key_generation".to_string())
+            .db_path("/tmp/test_p2wkh_public_key_generation".to_string())
             .network(Network::Testnet)
             .finalize();
         let mut af = WalletWithTrustedFullNode::new_no_random(wc, Box::new(FakeBlockChainIO)).unwrap();
