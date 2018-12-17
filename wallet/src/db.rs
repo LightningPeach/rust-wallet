@@ -12,17 +12,25 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use bitcoin::OutPoint;
+use bitcoin::{
+    OutPoint,
+    network::constants::Network,
+    util::bip32::ExtendedPrivKey,
+};
 use secp256k1::{Secp256k1, PublicKey};
 use rocksdb::{DB as RocksDB, ColumnFamilyDescriptor, Options, IteratorMode};
 use byteorder::{ByteOrder, BigEndian};
 use serde_json;
 
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    str::{self, FromStr},
+};
 
 use account::{Utxo, SecretKeyHelper, AccountAddressType};
 use walletlibrary::{LockId, LockGroup};
 
+static EXTENDED_SECRET_MASTER_KEY: &'static [u8] = b"master";
 static LAST_SEEN_BLOCK_HEIGHT: &'static [u8] = b"lsbh";
 static UTXO_MAP_CF: &'static str = "utxo_map";
 static EXTERNAL_PUBLIC_KEY_CF: &'static str = "epkcf";
@@ -76,6 +84,23 @@ impl DB {
             ],
         ).unwrap();
         DB(db)
+    }
+
+    pub fn get_extended_secret_master_key(&self) -> Option<ExtendedPrivKey> {
+        self.0.get(EXTENDED_SECRET_MASTER_KEY)
+            .unwrap()
+            .map(|val| {
+                let base58 = str::from_utf8(&*val).unwrap();
+                let mut master_key = ExtendedPrivKey::from_str(base58).unwrap();
+                // TODO(evg): remove this workaround after resolving this issue
+                // https://github.com/rust-bitcoin/rust-bitcoin/issues/202
+                master_key.network = Network::Regtest;
+                master_key
+            })
+    }
+    pub fn put_extended_secret_master_key(&self, master_key: ExtendedPrivKey) {
+        let base58 = format!("{}", master_key);
+        self.0.put(EXTENDED_SECRET_MASTER_KEY, base58.as_bytes()).unwrap();
     }
 
     pub fn get_last_seen_block_height(&self) -> usize {
