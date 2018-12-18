@@ -591,9 +591,8 @@ impl WalletLibrary {
             },
             WalletLibraryMode::Decrypt => {
                 let entropy = db.get_bip32_entropy();
-                let (master_key, mnemonic, encrypted) =
-                    KeyFactory::decrypt(
-                        &entropy,
+                let master_key = KeyFactory::decrypt(
+                    &entropy,
                         wc.network,
                         &wc.passphrase,
                         &wc.salt,

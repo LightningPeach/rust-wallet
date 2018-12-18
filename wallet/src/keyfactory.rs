@@ -47,11 +47,11 @@ impl KeyFactory {
     }
 
     /// decrypt stored master key
-    pub fn decrypt (encrypted: &[u8], network: Network, passphrase: &str, salt: &str) -> Result<(ExtendedPrivKey, Mnemonic, Vec<u8>), WalletError> {
+    pub fn decrypt (encrypted: &[u8], network: Network, passphrase: &str, salt: &str) -> Result<ExtendedPrivKey, WalletError> {
         let mnemonic = Mnemonic::new (encrypted, passphrase)?;
         let seed = Seed::new(&mnemonic, salt);
         let key = KeyFactory::master_private_key(network, &seed)?;
-        return Ok((key, mnemonic, encrypted.to_vec()))
+        return Ok(key)
     }
 
     /// create a master private key from seed
