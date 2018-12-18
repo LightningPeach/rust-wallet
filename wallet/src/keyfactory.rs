@@ -51,7 +51,13 @@ impl KeyFactory {
         let mnemonic = Mnemonic::new (encrypted, passphrase)?;
         let seed = Seed::new(&mnemonic, salt);
         let key = KeyFactory::master_private_key(network, &seed)?;
-        return Ok(key)
+        Ok(key)
+    }
+
+    pub fn recover_from_mnemonic(mnemonic: &Mnemonic, network: Network, salt: &str) -> Result<ExtendedPrivKey, WalletError> {
+        let seed = Seed::new(&mnemonic, salt);
+        let key = KeyFactory::master_private_key(network, &seed)?;
+        Ok(key)
     }
 
     /// create a master private key from seed

@@ -588,6 +588,7 @@ impl WalletLibraryInterface for WalletLibrary {
 pub enum WalletLibraryMode {
     Create(KeyGenConfig),
     Decrypt,
+    RecoverFromMnemomic(Mnemonic),
 }
 
 impl WalletLibrary {
@@ -617,6 +618,9 @@ impl WalletLibrary {
                         &wc.salt,
                     )?;
                 master_key
+            },
+            WalletLibraryMode::RecoverFromMnemomic(mnemonic) => {
+                KeyFactory::recover_from_mnemonic(&mnemonic, wc.network, &wc.salt)?
             }
         };
         let db = Arc::new(RwLock::new(db));
