@@ -52,34 +52,7 @@ impl KeyFactory {
         let seed = Seed::new(&mnemonic, salt);
         let key = KeyFactory::master_private_key(network, &seed)?;
         return Ok((key, mnemonic, encrypted.to_vec()))
-
-//        let client = BitcoinCoreClient::new(&cfg.url, &cfg.user, &cfg.password);
-//        let db = DB::open_default("rocks.db").unwrap();
-//        Ok(AccountFactory{
-//            key_factory: Arc::new(key_factory),
-//            master_key,
-//            mnemonic,
-//            encrypted: encrypted.to_vec(),
-//            account_list: Vec::new(),
-//            network,
-//            cfg,
-//            client,
-//            last_seen_block_height: 1,
-//            op_to_utxo: HashMap::new(),
-//            db: Arc::new(RwLock::new(db)),
-//        })
     }
-
-//    /// create a new master private key for debug/test purposes
-//    pub fn new_master_private_key_no_random(entropy: MasterKeyEntropy, network: Network,
-//        passphrase: &str, salt: &str) -> Result<(ExtendedPrivKey, Mnemonic, Vec<u8>), WalletError> {
-//
-//        let encrypted = vec!(0u8; entropy as usize);
-//        let mnemonic = Mnemonic::new(&encrypted, passphrase)?;
-//        let seed = Seed::new(&mnemonic, salt);
-//        let key = KeyFactory::master_private_key(network, &seed)?;
-//        return Ok((key, mnemonic, encrypted))
-//    }
 
     /// create a master private key from seed
     pub fn master_private_key(network: Network, seed: &Seed) -> Result<ExtendedPrivKey, WalletError> {
