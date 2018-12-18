@@ -31,7 +31,6 @@ use account::{Utxo, SecretKeyHelper, AccountAddressType};
 use walletlibrary::{LockId, LockGroup};
 
 static BIP32_ENTROPY: &'static [u8] = b"bip32_entropy";
-static EXTENDED_SECRET_MASTER_KEY: &'static [u8] = b"master";
 static LAST_SEEN_BLOCK_HEIGHT: &'static [u8] = b"lsbh";
 static UTXO_MAP_CF: &'static str = "utxo_map";
 static EXTERNAL_PUBLIC_KEY_CF: &'static str = "epkcf";
@@ -94,23 +93,6 @@ impl DB {
 
     pub fn put_bip32_entropy(&self, entropy: &[u8]) {
         self.0.put(BIP32_ENTROPY, entropy).unwrap();
-    }
-
-    pub fn get_extended_secret_master_key(&self) -> Option<ExtendedPrivKey> {
-        self.0.get(EXTENDED_SECRET_MASTER_KEY)
-            .unwrap()
-            .map(|val| {
-                let base58 = str::from_utf8(&*val).unwrap();
-                let mut master_key = ExtendedPrivKey::from_str(base58).unwrap();
-                // TODO(evg): remove this workaround after resolving this issue
-                // https://github.com/rust-bitcoin/rust-bitcoin/issues/202
-                master_key.network = Network::Regtest;
-                master_key
-            })
-    }
-    pub fn put_extended_secret_master_key(&self, master_key: ExtendedPrivKey) {
-        let base58 = format!("{}", master_key);
-        self.0.put(EXTENDED_SECRET_MASTER_KEY, base58.as_bytes()).unwrap();
     }
 
     pub fn get_last_seen_block_height(&self) -> usize {

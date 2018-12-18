@@ -585,7 +585,6 @@ impl WalletLibrary {
                         &wc.salt,
                         debug,
                     )?;
-                db.put_extended_secret_master_key(master_key);
                 db.put_bip32_entropy(&encrypted);
                 master_key
             },
