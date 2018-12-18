@@ -326,7 +326,7 @@ mod test {
     };
     use hex;
 
-    use walletlibrary::{WalletConfigBuilder, WalletLibraryMode};
+    use walletlibrary::{WalletConfigBuilder, WalletLibraryMode, KeyGenConfig};
     use default::WalletWithTrustedFullNode;
     use account::AccountAddressType;
     use interface::BlockChainIO;
@@ -369,7 +369,7 @@ mod test {
             .network(Network::Testnet)
             .finalize();
         let mut af = WalletWithTrustedFullNode::new(
-            wc, Box::new(FakeBlockChainIO), WalletLibraryMode::Create, true).unwrap();
+            wc, Box::new(FakeBlockChainIO), WalletLibraryMode::Create(KeyGenConfig::debug())).unwrap();
         let account = af.wallet_lib.get_account_mut(AccountAddressType::P2PKH);
 
         for expected_pk in get_external_pk_vec() {
@@ -406,7 +406,7 @@ mod test {
             .network(Network::Testnet)
             .finalize();
         let mut af = WalletWithTrustedFullNode::new(
-            wc, Box::new(FakeBlockChainIO), WalletLibraryMode::Create, true).unwrap();
+            wc, Box::new(FakeBlockChainIO), WalletLibraryMode::Create(KeyGenConfig::debug())).unwrap();
         let account = af.wallet_lib.get_account_mut(AccountAddressType::P2WKH);
 
         for expected_pk in external_pk_vec {

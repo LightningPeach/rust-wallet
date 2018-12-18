@@ -117,19 +117,40 @@ impl WalletConfigBuilder {
     }
 }
 
+pub struct KeyGenConfig {
+    entropy: MasterKeyEntropy,
+    // TODO(evg): use enum instead?
+    debug: bool,
+}
+
+impl KeyGenConfig {
+    pub fn debug() -> Self {
+        let mut key_gen_cfg = Self::default();
+        key_gen_cfg.debug = true;
+        key_gen_cfg
+    }
+}
+
+impl Default for KeyGenConfig {
+    fn default() -> Self {
+        Self {
+            entropy: DEFAULT_ENTROPY,
+            debug: false,
+        }
+    }
+}
+
 pub struct WalletConfig {
     network: Network,
-    entropy: MasterKeyEntropy,
     passphrase: String,
     salt: String,
     db_path: String
 }
 
 impl WalletConfig {
-    pub fn new(network: Network, entropy: MasterKeyEntropy, passphrase: String, salt: String, db_path: String) -> Self {
+    pub fn new(network: Network, passphrase: String, salt: String, db_path: String) -> Self {
         Self {
             network,
-            entropy,
             passphrase,
             salt,
             db_path,
@@ -147,7 +168,6 @@ impl Default for WalletConfig {
     fn default() -> Self {
         WalletConfig::new(
             DEFAULT_NETWORK,
-            DEFAULT_ENTROPY,
             DEFAULT_PASSPHRASE.to_string(),
             DEFAULT_SALT.to_string(),
             DEFAULT_DB_PATH.to_string(),
@@ -566,24 +586,24 @@ impl WalletLibraryInterface for WalletLibrary {
 }
 
 pub enum WalletLibraryMode {
-    Create,
+    Create(KeyGenConfig),
     Decrypt,
 }
 
 impl WalletLibrary {
-    pub fn new(wc: WalletConfig, mode: WalletLibraryMode, debug: bool) -> Result<WalletLibrary, WalletError> {
+    pub fn new(wc: WalletConfig, mode: WalletLibraryMode) -> Result<WalletLibrary, WalletError> {
         let db = DB::new(wc.db_path);
         let last_seen_block_height = db.get_last_seen_block_height();
         let op_to_utxo = db.get_utxo_map();
         let master_key = match mode {
-            WalletLibraryMode::Create => {
+            WalletLibraryMode::Create(key_gen_cfg) => {
                 let (master_key, mnemonic, encrypted) =
                     KeyFactory::new_master_private_key(
-                        wc.entropy,
+                        key_gen_cfg.entropy,
                         wc.network,
                         &wc.passphrase,
                         &wc.salt,
-                        debug,
+                        key_gen_cfg.debug,
                     )?;
                 db.put_bip39_randomness(&encrypted);
                 master_key

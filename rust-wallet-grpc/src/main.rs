@@ -30,7 +30,7 @@ use std::str::FromStr;
 use bitcoin_core_io::BitcoinCoreIO;
 use wallet::{
     walletlibrary::{
-        WalletConfig, BitcoindConfig, WalletLibraryMode,
+        WalletConfig, BitcoindConfig, WalletLibraryMode, KeyGenConfig,
         DEFAULT_NETWORK, DEFAULT_ENTROPY, DEFAULT_PASSPHRASE, DEFAULT_SALT, DEFAULT_DB_PATH,
         DEFAULT_BITCOIND_RPC_CONNECT, DEFAULT_BITCOIND_RPC_USER, DEFAULT_BITCOIND_RPC_PASSWORD,
         DEFAULT_ZMQ_PUB_RAW_BLOCK_ENDPOINT, DEFAULT_ZMQ_PUB_RAW_TX_ENDPOINT,
@@ -99,7 +99,6 @@ fn main() {
 
     let wc = WalletConfig::new(
         DEFAULT_NETWORK,
-        DEFAULT_ENTROPY,
         DEFAULT_PASSPHRASE.to_string(),
         DEFAULT_SALT.to_string(),
         matches.value_of("db_path").unwrap().to_string(),
@@ -116,13 +115,13 @@ fn main() {
     // TODO(evg): rewrite it; add --create param; use WalletLibraryMode::Decrypt mode as well
     let wallet = if matches.is_present("electrumx") {
         let mut electrumx_wallet: Box<Wallet + Send> = Box::new(ElectrumxWallet::new(
-            wc, WalletLibraryMode::Create, false).unwrap());
+            wc, WalletLibraryMode::Create(KeyGenConfig::default())).unwrap());
         electrumx_wallet
     } else {
         let bio = Box::new(BitcoinCoreIO::new(
             BitcoinCoreClient::new(&cfg.url, &cfg.user, &cfg.password)));
         let mut default_wallet: Box<Wallet + Send> = Box::new(WalletWithTrustedFullNode::new(
-            wc, bio, WalletLibraryMode::Create, false).unwrap());
+            wc, bio, WalletLibraryMode::Create(KeyGenConfig::default())).unwrap());
         default_wallet
     };
 

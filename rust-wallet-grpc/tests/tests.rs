@@ -34,7 +34,7 @@ use std::{
 };
 
 use wallet::{
-    walletlibrary::{WalletConfig, BitcoindConfig, WalletLibraryMode},
+    walletlibrary::{WalletConfig, BitcoindConfig, WalletLibraryMode, KeyGenConfig},
     default::WalletWithTrustedFullNode,
     electrumx::ElectrumxWallet,
     interface::Wallet,
@@ -80,12 +80,12 @@ fn launch_server_and_wait_new(db_path: String, cfg: BitcoindConfig, provider: Bl
                 let bio = Box::new(BitcoinCoreIO::new(
                     BitcoinCoreClient::new(&cfg.url, &cfg.user, &cfg.password)));
                 let mut default_wallet: Box<Wallet + Send> = Box::new(WalletWithTrustedFullNode::new(
-                    WalletConfig::with_db_path(db_path), bio, mode, false).unwrap());
+                    WalletConfig::with_db_path(db_path), bio, mode).unwrap());
                 default_wallet
             }
             BlockChainProvider::Electrumx => {
                 let mut electrumx_wallet: Box<Wallet + Send> = Box::new(ElectrumxWallet::new(
-                    WalletConfig::with_db_path(db_path), mode, false).unwrap());
+                    WalletConfig::with_db_path(db_path), mode).unwrap());
                 electrumx_wallet
             }
         };
@@ -194,7 +194,7 @@ fn sanity_check(provider: BlockChainProvider) {
 
     // launch wallet server and initialize wallet client
     let client = launch_server_and_wait_new(
-        tmp_db_path(), cfg, provider.clone(), WalletLibraryMode::Create);
+        tmp_db_path(), cfg, provider.clone(), WalletLibraryMode::Create(KeyGenConfig::default()));
 
     // generate wallet address and send money to it
     // sync with blockchain
@@ -236,7 +236,7 @@ fn base_wallet_functionality(provider: BlockChainProvider) {
 
     // launch wallet server with generated money and initialize wallet client
     let client = launch_server_and_wait_new(
-        tmp_db_path(), cfg, provider.clone(), WalletLibraryMode::Create);
+        tmp_db_path(), cfg, provider.clone(), WalletLibraryMode::Create(KeyGenConfig::default()));
     generate_money_for_wallet(&client, &bitcoind_client, provider.clone());
 
     // select all available utxos
@@ -281,7 +281,7 @@ fn base_persistent_storage(provider: BlockChainProvider) {
 
     // launch wallet server and initialize wallet client
     let client = launch_server_and_wait_new(
-        db_path.clone(), cfg.clone(), provider.clone(), WalletLibraryMode::Create);
+        db_path.clone(), cfg.clone(), provider.clone(), WalletLibraryMode::Create(KeyGenConfig::default()));
 
     // generate wallet address and send money to it
     let addr = client.new_address(AddressType::P2WKH);
@@ -342,7 +342,7 @@ fn extended_persistent_storage(provider: BlockChainProvider) {
 
     // launch wallet server with generated money and initialize wallet client
     let client = launch_server_and_wait_new(
-        db_path.clone(), cfg.clone(), provider.clone(), WalletLibraryMode::Create);
+        db_path.clone(), cfg.clone(), provider.clone(), WalletLibraryMode::Create(KeyGenConfig::default()));
     generate_money_for_wallet(&client, &bitcoind_client, provider.clone());
 
     // shutdown wallet and recover wallet's state from persistent storage
@@ -421,7 +421,7 @@ fn make_tx_call(provider: BlockChainProvider) {
 
     // launch wallet server with generated money and initialize wallet client
     let client = launch_server_and_wait_new(
-        db_path.clone(), cfg.clone(), provider.clone(), WalletLibraryMode::Create);
+        db_path.clone(), cfg.clone(), provider.clone(), WalletLibraryMode::Create(KeyGenConfig::default()));
     generate_money_for_wallet(&client, &bitcoind_client, provider.clone());
 
     // select utxo subset
@@ -492,7 +492,7 @@ fn send_coins_call(provider: BlockChainProvider) {
 
     // launch wallet server with generated money and initialize wallet client
     let client = launch_server_and_wait_new(
-        db_path.clone(), cfg.clone(), provider.clone(), WalletLibraryMode::Create);
+        db_path.clone(), cfg.clone(), provider.clone(), WalletLibraryMode::Create(KeyGenConfig::default()));
     generate_money_for_wallet(&client, &bitcoind_client, provider.clone());
 
     // generate destination address
@@ -556,7 +556,7 @@ fn lock_coins_flag_success(provider: BlockChainProvider) {
 
     // launch wallet server with generated money and initialize wallet client
     let client = launch_server_and_wait_new(
-        tmp_db_path(), cfg.clone(), provider.clone(), WalletLibraryMode::Create);
+        tmp_db_path(), cfg.clone(), provider.clone(), WalletLibraryMode::Create(KeyGenConfig::default()));
     generate_money_for_wallet(&client, &bitcoind_client, provider.clone());
 
     // generate destination address
@@ -620,7 +620,7 @@ fn lock_coins_flag_fail(provider: BlockChainProvider) {
 
     // launch wallet server with generated money and initialize wallet client
     let client = launch_server_and_wait_new(
-        tmp_db_path(), cfg.clone(), provider.clone(), WalletLibraryMode::Create);
+        tmp_db_path(), cfg.clone(), provider.clone(), WalletLibraryMode::Create(KeyGenConfig::default()));
     generate_money_for_wallet(&client, &bitcoind_client, provider.clone());
 
     // generate destination address
