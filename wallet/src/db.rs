@@ -30,6 +30,7 @@ use std::{
 use account::{Utxo, SecretKeyHelper, AccountAddressType};
 use walletlibrary::{LockId, LockGroup};
 
+static BIP32_ENTROPY: &'static [u8] = b"bip32_entropy";
 static EXTENDED_SECRET_MASTER_KEY: &'static [u8] = b"master";
 static LAST_SEEN_BLOCK_HEIGHT: &'static [u8] = b"lsbh";
 static UTXO_MAP_CF: &'static str = "utxo_map";
@@ -84,6 +85,15 @@ impl DB {
             ],
         ).unwrap();
         DB(db)
+    }
+
+    pub fn get_bip32_entropy(&self) -> Vec<u8> {
+        let entropy = self.0.get(BIP32_ENTROPY).unwrap().unwrap();
+        (*entropy).to_vec()
+    }
+
+    pub fn put_bip32_entropy(&self, entropy: &[u8]) {
+        self.0.put(BIP32_ENTROPY, entropy).unwrap();
     }
 
     pub fn get_extended_secret_master_key(&self) -> Option<ExtendedPrivKey> {

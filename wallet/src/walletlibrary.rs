@@ -578,7 +578,7 @@ impl WalletLibrary {
         let master_key = match mode {
             WalletLibraryMode::Create => {
                 let (master_key, mnemonic, encrypted) =
-                    KeyFactory::new_master_private_key (
+                    KeyFactory::new_master_private_key(
                         wc.entropy,
                         wc.network,
                         &wc.passphrase,
@@ -586,9 +586,20 @@ impl WalletLibrary {
                         debug,
                     )?;
                 db.put_extended_secret_master_key(master_key);
+                db.put_bip32_entropy(&encrypted);
                 master_key
             },
-            WalletLibraryMode::Decrypt => db.get_extended_secret_master_key().unwrap()
+            WalletLibraryMode::Decrypt => {
+                let entropy = db.get_bip32_entropy();
+                let (master_key, mnemonic, encrypted) =
+                    KeyFactory::decrypt(
+                        &entropy,
+                        wc.network,
+                        &wc.passphrase,
+                        &wc.salt,
+                    )?;
+                master_key
+            }
         };
         let db = Arc::new(RwLock::new(db));
 

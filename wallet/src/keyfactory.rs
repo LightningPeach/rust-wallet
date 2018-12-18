@@ -32,7 +32,7 @@ pub struct KeyFactory;
 
 impl KeyFactory {
     /// create a new random master private key
-    pub fn new_master_private_key (entropy: MasterKeyEntropy, network: Network, passphrase: &str, salt: &str, debug: bool) -> Result<(ExtendedPrivKey, Mnemonic, Vec<u8>), WalletError> {
+    pub fn new_master_private_key(entropy: MasterKeyEntropy, network: Network, passphrase: &str, salt: &str, debug: bool) -> Result<(ExtendedPrivKey, Mnemonic, Vec<u8>), WalletError> {
         let mut encrypted = vec!(0u8; entropy as usize);
         if let Ok(mut rng) = OsRng::new() {
             if !debug {
@@ -44,6 +44,30 @@ impl KeyFactory {
             return Ok((key, mnemonic, encrypted))
         }
         Err(WalletError::Generic("can not obtain random source"))
+    }
+
+    /// decrypt stored master key
+    pub fn decrypt (encrypted: &[u8], network: Network, passphrase: &str, salt: &str) -> Result<(ExtendedPrivKey, Mnemonic, Vec<u8>), WalletError> {
+        let mnemonic = Mnemonic::new (encrypted, passphrase)?;
+        let seed = Seed::new(&mnemonic, salt);
+        let key = KeyFactory::master_private_key(network, &seed)?;
+        return Ok((key, mnemonic, encrypted.to_vec()))
+
+//        let client = BitcoinCoreClient::new(&cfg.url, &cfg.user, &cfg.password);
+//        let db = DB::open_default("rocks.db").unwrap();
+//        Ok(AccountFactory{
+//            key_factory: Arc::new(key_factory),
+//            master_key,
+//            mnemonic,
+//            encrypted: encrypted.to_vec(),
+//            account_list: Vec::new(),
+//            network,
+//            cfg,
+//            client,
+//            last_seen_block_height: 1,
+//            op_to_utxo: HashMap::new(),
+//            db: Arc::new(RwLock::new(db)),
+//        })
     }
 
 //    /// create a new master private key for debug/test purposes
