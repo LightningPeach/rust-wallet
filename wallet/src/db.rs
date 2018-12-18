@@ -30,7 +30,7 @@ use std::{
 use account::{Utxo, SecretKeyHelper, AccountAddressType};
 use walletlibrary::{LockId, LockGroup};
 
-static BIP32_ENTROPY: &'static [u8] = b"bip32_entropy";
+static BIP39_RANDOMNESS: &'static [u8] = b"bip39_randomness";
 static LAST_SEEN_BLOCK_HEIGHT: &'static [u8] = b"lsbh";
 static UTXO_MAP_CF: &'static str = "utxo_map";
 static EXTERNAL_PUBLIC_KEY_CF: &'static str = "epkcf";
@@ -86,13 +86,13 @@ impl DB {
         DB(db)
     }
 
-    pub fn get_bip32_entropy(&self) -> Vec<u8> {
-        let entropy = self.0.get(BIP32_ENTROPY).unwrap().unwrap();
-        (*entropy).to_vec()
+    pub fn get_bip39_randomness(&self) -> Vec<u8> {
+        let randomness = self.0.get(BIP39_RANDOMNESS).unwrap().unwrap();
+        (*randomness).to_vec()
     }
 
-    pub fn put_bip32_entropy(&self, entropy: &[u8]) {
-        self.0.put(BIP32_ENTROPY, entropy).unwrap();
+    pub fn put_bip39_randomness(&self, randomness: &[u8]) {
+        self.0.put(BIP39_RANDOMNESS, randomness).unwrap();
     }
 
     pub fn get_last_seen_block_height(&self) -> usize {

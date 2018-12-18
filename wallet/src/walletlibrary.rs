@@ -585,13 +585,13 @@ impl WalletLibrary {
                         &wc.salt,
                         debug,
                     )?;
-                db.put_bip32_entropy(&encrypted);
+                db.put_bip39_randomness(&encrypted);
                 master_key
             },
             WalletLibraryMode::Decrypt => {
-                let entropy = db.get_bip32_entropy();
+                let randomness = db.get_bip39_randomness();
                 let master_key = KeyFactory::decrypt(
-                    &entropy,
+                    &randomness,
                         wc.network,
                         &wc.passphrase,
                         &wc.salt,
