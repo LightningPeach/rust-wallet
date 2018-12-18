@@ -571,18 +571,19 @@ pub enum WalletLibraryMode {
 }
 
 impl WalletLibrary {
-    pub fn new_no_random (wc: WalletConfig, mode: WalletLibraryMode) -> Result<WalletLibrary, WalletError> {
+    pub fn new(wc: WalletConfig, mode: WalletLibraryMode, debug: bool) -> Result<WalletLibrary, WalletError> {
         let db = DB::new(wc.db_path);
         let last_seen_block_height = db.get_last_seen_block_height();
         let op_to_utxo = db.get_utxo_map();
         let master_key = match mode {
             WalletLibraryMode::Create => {
                 let (master_key, mnemonic, encrypted) =
-                    KeyFactory::new_master_private_key_no_random (
+                    KeyFactory::new_master_private_key (
                         wc.entropy,
                         wc.network,
                         &wc.passphrase,
                         &wc.salt,
+                        debug,
                     )?;
                 db.put_extended_secret_master_key(master_key);
                 master_key

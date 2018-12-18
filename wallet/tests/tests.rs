@@ -149,13 +149,13 @@ fn sanity_check(provider: BlockChainProvider) {
         BlockChainProvider::TrustedFullNode => {
             let bio = Box::new(BitcoinCoreIO::new(
                 BitcoinCoreClient::new(&cfg.url, &cfg.user, &cfg.password)));
-            let mut default_wallet: Box<Wallet> = Box::new(WalletWithTrustedFullNode::new_no_random(
-                WalletConfig::with_db_path(tmp_db_path()), bio, WalletLibraryMode::Create).unwrap());
+            let mut default_wallet: Box<Wallet> = Box::new(WalletWithTrustedFullNode::new(
+                WalletConfig::with_db_path(tmp_db_path()), bio, WalletLibraryMode::Create, false).unwrap());
             default_wallet
         }
         BlockChainProvider::Electrumx => {
-            let mut electrumx_wallet: Box<Wallet> = Box::new(ElectrumxWallet::new_no_random(
-                WalletConfig::with_db_path(tmp_db_path()), WalletLibraryMode::Create).unwrap());
+            let mut electrumx_wallet: Box<Wallet> = Box::new(ElectrumxWallet::new(
+                WalletConfig::with_db_path(tmp_db_path()), WalletLibraryMode::Create, false).unwrap());
             electrumx_wallet
         }
     };
@@ -202,13 +202,13 @@ fn base_wallet_functionality(provider: BlockChainProvider) {
         BlockChainProvider::TrustedFullNode => {
             let bio = Box::new(BitcoinCoreIO::new(
                 BitcoinCoreClient::new(&cfg.url, &cfg.user, &cfg.password)));
-            let mut default_wallet: Box<Wallet> = Box::new(WalletWithTrustedFullNode::new_no_random(
-                WalletConfig::with_db_path(tmp_db_path()), bio, WalletLibraryMode::Create).unwrap());
+            let mut default_wallet: Box<Wallet> = Box::new(WalletWithTrustedFullNode::new(
+                WalletConfig::with_db_path(tmp_db_path()), bio, WalletLibraryMode::Create, false).unwrap());
             default_wallet
         }
         BlockChainProvider::Electrumx => {
-            let mut electrumx_wallet: Box<Wallet> = Box::new(ElectrumxWallet::new_no_random(
-                WalletConfig::with_db_path(tmp_db_path()), WalletLibraryMode::Create).unwrap());
+            let mut electrumx_wallet: Box<Wallet> = Box::new(ElectrumxWallet::new(
+                WalletConfig::with_db_path(tmp_db_path()), WalletLibraryMode::Create, false).unwrap());
             electrumx_wallet
         }
     };
@@ -259,13 +259,13 @@ fn base_persistent_storage(provider: BlockChainProvider) {
             BlockChainProvider::TrustedFullNode => {
                 let bio = Box::new(BitcoinCoreIO::new(
                     BitcoinCoreClient::new(&cfg.url, &cfg.user, &cfg.password)));
-                let mut default_wallet: Box<Wallet> = Box::new(WalletWithTrustedFullNode::new_no_random(
-                    WalletConfig::with_db_path(db_path.clone()), bio, WalletLibraryMode::Create).unwrap());
+                let mut default_wallet: Box<Wallet> = Box::new(WalletWithTrustedFullNode::new(
+                    WalletConfig::with_db_path(db_path.clone()), bio, WalletLibraryMode::Create, false).unwrap());
                 default_wallet
             }
             BlockChainProvider::Electrumx => {
-                let mut electrumx_wallet: Box<Wallet> = Box::new(ElectrumxWallet::new_no_random(
-                    WalletConfig::with_db_path(db_path.clone()), WalletLibraryMode::Create).unwrap());
+                let mut electrumx_wallet: Box<Wallet> = Box::new(ElectrumxWallet::new(
+                    WalletConfig::with_db_path(db_path.clone()), WalletLibraryMode::Create, false).unwrap());
                 electrumx_wallet
             }
         };
@@ -286,13 +286,13 @@ fn base_persistent_storage(provider: BlockChainProvider) {
         BlockChainProvider::TrustedFullNode => {
             let bio = Box::new(BitcoinCoreIO::new(
                 BitcoinCoreClient::new(&cfg.url, &cfg.user, &cfg.password)));
-            let mut default_wallet: Box<Wallet> = Box::new(WalletWithTrustedFullNode::new_no_random(
-                WalletConfig::with_db_path(db_path), bio, WalletLibraryMode::Decrypt).unwrap());
+            let mut default_wallet: Box<Wallet> = Box::new(WalletWithTrustedFullNode::new(
+                WalletConfig::with_db_path(db_path), bio, WalletLibraryMode::Decrypt, false).unwrap());
             default_wallet
         }
         BlockChainProvider::Electrumx => {
-            let mut electrumx_wallet: Box<Wallet> = Box::new(ElectrumxWallet::new_no_random(
-                WalletConfig::with_db_path(db_path), WalletLibraryMode::Decrypt).unwrap());
+            let mut electrumx_wallet: Box<Wallet> = Box::new(ElectrumxWallet::new(
+                WalletConfig::with_db_path(db_path), WalletLibraryMode::Decrypt, false).unwrap());
             electrumx_wallet
         }
     };
@@ -345,13 +345,13 @@ fn extended_persistent_storage(provider: BlockChainProvider) {
             BlockChainProvider::TrustedFullNode => {
                 let bio = Box::new(BitcoinCoreIO::new(
                     BitcoinCoreClient::new(&cfg.url, &cfg.user, &cfg.password)));
-                let mut default_wallet: Box<Wallet> = Box::new(WalletWithTrustedFullNode::new_no_random(
-                    WalletConfig::with_db_path(db_path.clone()), bio, WalletLibraryMode::Create).unwrap());
+                let mut default_wallet: Box<Wallet> = Box::new(WalletWithTrustedFullNode::new(
+                    WalletConfig::with_db_path(db_path.clone()), bio, WalletLibraryMode::Create, false).unwrap());
                 default_wallet
             }
             BlockChainProvider::Electrumx => {
-                let mut electrumx_wallet: Box<Wallet> = Box::new(ElectrumxWallet::new_no_random(
-                    WalletConfig::with_db_path(db_path.clone()), WalletLibraryMode::Create).unwrap());
+                let mut electrumx_wallet: Box<Wallet> = Box::new(ElectrumxWallet::new(
+                    WalletConfig::with_db_path(db_path.clone()), WalletLibraryMode::Create, false).unwrap());
                 electrumx_wallet
             }
         };
@@ -365,13 +365,13 @@ fn extended_persistent_storage(provider: BlockChainProvider) {
             BlockChainProvider::TrustedFullNode => {
                 let bio = Box::new(BitcoinCoreIO::new(
                     BitcoinCoreClient::new(&cfg.url, &cfg.user, &cfg.password)));
-                let mut default_wallet: Box<Wallet> = Box::new(WalletWithTrustedFullNode::new_no_random(
-                    WalletConfig::with_db_path(db_path.clone()), bio, WalletLibraryMode::Decrypt).unwrap());
+                let mut default_wallet: Box<Wallet> = Box::new(WalletWithTrustedFullNode::new(
+                    WalletConfig::with_db_path(db_path.clone()), bio, WalletLibraryMode::Decrypt, false).unwrap());
                 default_wallet
             }
             BlockChainProvider::Electrumx => {
-                let mut electrumx_wallet: Box<Wallet> = Box::new(ElectrumxWallet::new_no_random(
-                    WalletConfig::with_db_path(db_path.clone()), WalletLibraryMode::Decrypt).unwrap());
+                let mut electrumx_wallet: Box<Wallet> = Box::new(ElectrumxWallet::new(
+                    WalletConfig::with_db_path(db_path.clone()), WalletLibraryMode::Decrypt, false).unwrap());
                 electrumx_wallet
             }
         };
@@ -415,13 +415,13 @@ fn extended_persistent_storage(provider: BlockChainProvider) {
         BlockChainProvider::TrustedFullNode => {
             let bio = Box::new(BitcoinCoreIO::new(
                 BitcoinCoreClient::new(&cfg.url, &cfg.user, &cfg.password)));
-            let mut default_wallet: Box<Wallet> = Box::new(WalletWithTrustedFullNode::new_no_random(
-                WalletConfig::with_db_path(db_path), bio, WalletLibraryMode::Decrypt).unwrap());
+            let mut default_wallet: Box<Wallet> = Box::new(WalletWithTrustedFullNode::new(
+                WalletConfig::with_db_path(db_path), bio, WalletLibraryMode::Decrypt, false).unwrap());
             default_wallet
         }
         BlockChainProvider::Electrumx => {
-            let mut electrumx_wallet: Box<Wallet> = Box::new(ElectrumxWallet::new_no_random(
-                WalletConfig::with_db_path(db_path), WalletLibraryMode::Decrypt).unwrap());
+            let mut electrumx_wallet: Box<Wallet> = Box::new(ElectrumxWallet::new(
+                WalletConfig::with_db_path(db_path), WalletLibraryMode::Decrypt, false).unwrap());
             electrumx_wallet
         }
     };
@@ -459,13 +459,13 @@ fn make_tx_call(provider: BlockChainProvider) {
         BlockChainProvider::TrustedFullNode => {
             let bio = Box::new(BitcoinCoreIO::new(
                 BitcoinCoreClient::new(&cfg.url, &cfg.user, &cfg.password)));
-            let mut default_wallet: Box<Wallet> = Box::new(WalletWithTrustedFullNode::new_no_random(
-                WalletConfig::with_db_path(tmp_db_path()), bio, WalletLibraryMode::Create).unwrap());
+            let mut default_wallet: Box<Wallet> = Box::new(WalletWithTrustedFullNode::new(
+                WalletConfig::with_db_path(tmp_db_path()), bio, WalletLibraryMode::Create, false).unwrap());
             default_wallet
         }
         BlockChainProvider::Electrumx => {
-            let mut electrumx_wallet: Box<Wallet> = Box::new(ElectrumxWallet::new_no_random(
-                WalletConfig::with_db_path(tmp_db_path()), WalletLibraryMode::Create).unwrap());
+            let mut electrumx_wallet: Box<Wallet> = Box::new(ElectrumxWallet::new(
+                WalletConfig::with_db_path(tmp_db_path()), WalletLibraryMode::Create, false).unwrap());
             electrumx_wallet
         }
     };
@@ -541,13 +541,13 @@ fn send_coins_call(provider: BlockChainProvider) {
         BlockChainProvider::TrustedFullNode => {
             let bio = Box::new(BitcoinCoreIO::new(
                 BitcoinCoreClient::new(&cfg.url, &cfg.user, &cfg.password)));
-            let mut default_wallet: Box<Wallet> = Box::new(WalletWithTrustedFullNode::new_no_random(
-                WalletConfig::with_db_path(tmp_db_path()), bio, WalletLibraryMode::Create).unwrap());
+            let mut default_wallet: Box<Wallet> = Box::new(WalletWithTrustedFullNode::new(
+                WalletConfig::with_db_path(tmp_db_path()), bio, WalletLibraryMode::Create, false).unwrap());
             default_wallet
         }
         BlockChainProvider::Electrumx => {
-            let mut electrumx_wallet: Box<Wallet> = Box::new(ElectrumxWallet::new_no_random(
-                WalletConfig::with_db_path(tmp_db_path()), WalletLibraryMode::Create).unwrap());
+            let mut electrumx_wallet: Box<Wallet> = Box::new(ElectrumxWallet::new(
+                WalletConfig::with_db_path(tmp_db_path()), WalletLibraryMode::Create, false).unwrap());
             electrumx_wallet
         }
     };
@@ -625,13 +625,13 @@ fn lock_coins_flag_success(provider: BlockChainProvider) {
         BlockChainProvider::TrustedFullNode => {
             let bio = Box::new(BitcoinCoreIO::new(
                 BitcoinCoreClient::new(&cfg.url, &cfg.user, &cfg.password)));
-            let mut default_wallet: Box<Wallet> = Box::new(WalletWithTrustedFullNode::new_no_random(
-                WalletConfig::with_db_path(tmp_db_path()), bio, WalletLibraryMode::Create).unwrap());
+            let mut default_wallet: Box<Wallet> = Box::new(WalletWithTrustedFullNode::new(
+                WalletConfig::with_db_path(tmp_db_path()), bio, WalletLibraryMode::Create, false).unwrap());
             default_wallet
         }
         BlockChainProvider::Electrumx => {
-            let mut electrumx_wallet: Box<Wallet> = Box::new(ElectrumxWallet::new_no_random(
-                WalletConfig::with_db_path(tmp_db_path()), WalletLibraryMode::Create).unwrap());
+            let mut electrumx_wallet: Box<Wallet> = Box::new(ElectrumxWallet::new(
+                WalletConfig::with_db_path(tmp_db_path()), WalletLibraryMode::Create, false).unwrap());
             electrumx_wallet
         }
     };
@@ -705,13 +705,13 @@ fn lock_coins_flag_fail(provider: BlockChainProvider) {
         BlockChainProvider::TrustedFullNode => {
             let bio = Box::new(BitcoinCoreIO::new(
                 BitcoinCoreClient::new(&cfg.url, &cfg.user, &cfg.password)));
-            let mut default_wallet: Box<Wallet> = Box::new(WalletWithTrustedFullNode::new_no_random(
-                WalletConfig::with_db_path(tmp_db_path()), bio, WalletLibraryMode::Create).unwrap());
+            let mut default_wallet: Box<Wallet> = Box::new(WalletWithTrustedFullNode::new(
+                WalletConfig::with_db_path(tmp_db_path()), bio, WalletLibraryMode::Create, false).unwrap());
             default_wallet
         }
         BlockChainProvider::Electrumx => {
-            let mut electrumx_wallet: Box<Wallet> = Box::new(ElectrumxWallet::new_no_random(
-                WalletConfig::with_db_path(tmp_db_path()), WalletLibraryMode::Create).unwrap());
+            let mut electrumx_wallet: Box<Wallet> = Box::new(ElectrumxWallet::new(
+                WalletConfig::with_db_path(tmp_db_path()), WalletLibraryMode::Create, false).unwrap());
             electrumx_wallet
         }
     };

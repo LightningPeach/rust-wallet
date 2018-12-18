@@ -115,14 +115,14 @@ fn main() {
 
     // TODO(evg): rewrite it; add --create param; use WalletLibraryMode::Decrypt mode as well
     let wallet = if matches.is_present("electrumx") {
-        let mut electrumx_wallet: Box<Wallet + Send> = Box::new(ElectrumxWallet::new_no_random(
-            wc, WalletLibraryMode::Create).unwrap());
+        let mut electrumx_wallet: Box<Wallet + Send> = Box::new(ElectrumxWallet::new(
+            wc, WalletLibraryMode::Create, false).unwrap());
         electrumx_wallet
     } else {
         let bio = Box::new(BitcoinCoreIO::new(
             BitcoinCoreClient::new(&cfg.url, &cfg.user, &cfg.password)));
-        let mut default_wallet: Box<Wallet + Send> = Box::new(WalletWithTrustedFullNode::new_no_random(
-            wc, bio, WalletLibraryMode::Create).unwrap());
+        let mut default_wallet: Box<Wallet + Send> = Box::new(WalletWithTrustedFullNode::new(
+            wc, bio, WalletLibraryMode::Create, false).unwrap());
         default_wallet
     };
 
