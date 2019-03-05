@@ -588,7 +588,7 @@ impl WalletLibraryInterface for WalletLibrary {
 pub enum WalletLibraryMode {
     Create(KeyGenConfig),
     Decrypt,
-    RecoverFromMnemomic(Mnemonic),
+    RecoverFromMnemonic(Mnemonic),
 }
 
 impl WalletLibrary {
@@ -598,7 +598,7 @@ impl WalletLibrary {
         let op_to_utxo = db.get_utxo_map();
         let master_key = match mode {
             WalletLibraryMode::Create(key_gen_cfg) => {
-                let (master_key, mnemonic, encrypted) =
+                let (master_key, _mnemonic, encrypted) =
                     KeyFactory::new_master_private_key(
                         key_gen_cfg.entropy,
                         wc.network,
@@ -619,7 +619,9 @@ impl WalletLibrary {
                     )?;
                 master_key
             },
-            WalletLibraryMode::RecoverFromMnemomic(mnemonic) => {
+            WalletLibraryMode::RecoverFromMnemonic(mnemonic) => {
+                let encrypted = mnemonic.restore(&wc.passphrase)?;
+                db.put_bip39_randomness(&encrypted);
                 KeyFactory::recover_from_mnemonic(&mnemonic, wc.network, &wc.salt)?
             }
         };
