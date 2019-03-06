@@ -19,6 +19,7 @@ use std::error::Error;
 use walletlibrary::{WalletLibrary, WalletConfig, LockId, WalletLibraryMode};
 use interface::{BlockChainIO, WalletLibraryInterface, Wallet};
 use error::WalletError;
+use mnemonic::Mnemonic;
 
 // a factory for TREZOR (BIP44) compatible accounts
 pub struct WalletWithTrustedFullNode {
@@ -88,13 +89,10 @@ impl WalletWithTrustedFullNode {
 //        })
 //    }
 
-    pub fn new(wc: WalletConfig, bio: Box<BlockChainIO + Send>, mode: WalletLibraryMode) -> Result<WalletWithTrustedFullNode, WalletError> {
-        let wallet_lib = Box::new(WalletLibrary::new(wc, mode).unwrap());
+    pub fn new(wc: WalletConfig, bio: Box<BlockChainIO + Send>, mode: WalletLibraryMode) -> Result<(WalletWithTrustedFullNode, Mnemonic), WalletError> {
+        let (wallet_lib, mnemonic) = WalletLibrary::new(wc, mode).unwrap();
 
-        Ok(WalletWithTrustedFullNode {
-            wallet_lib,
-            bio,
-        })
+        Ok((WalletWithTrustedFullNode { wallet_lib: Box::new(wallet_lib), bio }, mnemonic))
     }
 
     fn process_block(&mut self, block_height: usize, block: &Block) {

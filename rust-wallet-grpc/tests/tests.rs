@@ -79,14 +79,14 @@ fn launch_server_and_wait_new(db_path: String, cfg: BitcoindConfig, provider: Bl
             BlockChainProvider::TrustedFullNode => {
                 let bio = Box::new(BitcoinCoreIO::new(
                     BitcoinCoreClient::new(&cfg.url, &cfg.user, &cfg.password)));
-                let mut default_wallet: Box<Wallet + Send> = Box::new(WalletWithTrustedFullNode::new(
-                    WalletConfig::with_db_path(db_path), bio, mode).unwrap());
-                default_wallet
+                let (default_wallet, _) = WalletWithTrustedFullNode::new(
+                    WalletConfig::with_db_path(db_path), bio, mode).unwrap();
+                Box::<dyn Wallet + Send>::new(default_wallet)
             }
             BlockChainProvider::Electrumx => {
-                let mut electrumx_wallet: Box<Wallet + Send> = Box::new(ElectrumxWallet::new(
-                    WalletConfig::with_db_path(db_path), mode).unwrap());
-                electrumx_wallet
+                let (electrumx_wallet, _) = ElectrumxWallet::new(
+                    WalletConfig::with_db_path(db_path), mode).unwrap();
+                Box::<dyn Wallet + Send>::new(electrumx_wallet)
             }
         };
         launch_server_new(wallet, DEFAULT_WALLET_RPC_PORT);

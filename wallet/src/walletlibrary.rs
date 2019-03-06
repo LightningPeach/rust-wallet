@@ -592,14 +592,13 @@ pub enum WalletLibraryMode {
 }
 
 impl WalletLibrary {
-    pub fn new(wc: WalletConfig, mode: WalletLibraryMode) -> Result<WalletLibrary, WalletError> {
+    pub fn new(wc: WalletConfig, mode: WalletLibraryMode) -> Result<(WalletLibrary, Mnemonic), WalletError> {
         let db = DB::new(wc.db_path);
         let last_seen_block_height = db.get_last_seen_block_height();
         let op_to_utxo = db.get_utxo_map();
-        let master_key = match mode {
+        let (master_key, mnemonic) = match mode {
             WalletLibraryMode::Create(key_gen_cfg) => {
-                let (master_key, _mnemonic, encrypted) =
-                    KeyFactory::new_master_private_key(
+                let (master_key, mnemonic, encrypted) = KeyFactory::new_master_private_key(
                         key_gen_cfg.entropy,
                         wc.network,
                         &wc.passphrase,
@@ -607,22 +606,27 @@ impl WalletLibrary {
                         key_gen_cfg.debug,
                     )?;
                 db.put_bip39_randomness(&encrypted);
-                master_key
+                (master_key, mnemonic)
             },
             WalletLibraryMode::Decrypt => {
                 let randomness = db.get_bip39_randomness();
-                let master_key = KeyFactory::decrypt(
+                let (master_key, mnemonic) = KeyFactory::decrypt(
                     &randomness,
                         wc.network,
                         &wc.passphrase,
                         &wc.salt,
                     )?;
-                master_key
+                (master_key, mnemonic)
             },
             WalletLibraryMode::RecoverFromMnemonic(mnemonic) => {
                 let encrypted = mnemonic.restore(&wc.passphrase)?;
                 db.put_bip39_randomness(&encrypted);
-                KeyFactory::recover_from_mnemonic(&mnemonic, wc.network, &wc.salt)?
+                let master_key = KeyFactory::recover_from_mnemonic(
+                    &mnemonic,
+                    wc.network,
+                    &wc.salt
+                )?;
+                (master_key, mnemonic)
             }
         };
         let db = Arc::new(RwLock::new(db));
@@ -695,7 +699,7 @@ impl WalletLibrary {
         for addr in p2wkh_addr_list {
             wallet_lib.get_account_mut(AccountAddressType::P2WKH).btc_address_list.push(addr);
         }
-        Ok(wallet_lib)
+        Ok((wallet_lib, mnemonic))
     }
 
     /// get a copy of the master private key

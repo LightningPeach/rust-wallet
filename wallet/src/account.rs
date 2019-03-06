@@ -368,8 +368,7 @@ mod test {
             .db_path("/tmp/test_p2pkh_public_key_generation".to_string())
             .network(Network::Testnet)
             .finalize();
-        let mut af = WalletWithTrustedFullNode::new(
-            wc, Box::new(FakeBlockChainIO), WalletLibraryMode::Create(KeyGenConfig::debug())).unwrap();
+        let (mut af, _) = WalletWithTrustedFullNode::new(wc, Box::new(FakeBlockChainIO), WalletLibraryMode::Create(KeyGenConfig::debug())).unwrap();
         let account = af.wallet_lib.get_account_mut(AccountAddressType::P2PKH);
 
         for expected_pk in get_external_pk_vec() {
@@ -405,7 +404,7 @@ mod test {
             .db_path("/tmp/test_p2wkh_public_key_generation".to_string())
             .network(Network::Testnet)
             .finalize();
-        let mut af = WalletWithTrustedFullNode::new(
+        let (mut af, _) = WalletWithTrustedFullNode::new(
             wc, Box::new(FakeBlockChainIO), WalletLibraryMode::Create(KeyGenConfig::debug())).unwrap();
         let account = af.wallet_lib.get_account_mut(AccountAddressType::P2WKH);
 
