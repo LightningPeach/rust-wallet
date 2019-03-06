@@ -12,20 +12,13 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-use bitcoin::{
-    OutPoint,
-    network::constants::Network,
-    util::bip32::ExtendedPrivKey,
-};
+use bitcoin::OutPoint;
 use secp256k1::{Secp256k1, PublicKey};
 use rocksdb::{DB as RocksDB, ColumnFamilyDescriptor, Options, IteratorMode};
 use byteorder::{ByteOrder, BigEndian};
 use serde_json;
 
-use std::{
-    collections::HashMap,
-    str::{self, FromStr},
-};
+use std::collections::HashMap;
 
 use account::{Utxo, SecretKeyHelper, AccountAddressType};
 use walletlibrary::{LockId, LockGroup};

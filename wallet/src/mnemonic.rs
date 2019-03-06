@@ -158,15 +158,12 @@ impl Mnemonic {
 
         // split
         let (data, check) = data.split_at(data_length / 8);
-        dbg!(hex::encode(check));
 
         // calc reference checksum
         let mut calc_check = [0u8; 32];
         let mut sha2 = Sha256::new();
         sha2.input(data);
         sha2.result(&mut calc_check);
-        dbg!(hex::encode(calc_check));
-        dbg!(check_length);
 
         // calc checking ranges, `check_bytes` will be 0 if entropy < 256
         let check_bytes = check_length / 8;
