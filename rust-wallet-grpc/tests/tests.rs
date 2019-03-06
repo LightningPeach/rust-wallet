@@ -75,18 +75,18 @@ fn bitcoind_init(node: &Container<DockerCli, BitcoinCore>) -> (BitcoinCoreClient
 fn launch_server_and_wait_new(db_path: String, cfg: BitcoindConfig, provider: BlockChainProvider, mode: WalletLibraryMode) -> WalletClientWrapper {
     let provider_copy = provider.clone();
     thread::spawn(move || {
-        let wallet = match provider_copy {
+        let wallet: Box<dyn Wallet + Send> = match provider_copy {
             BlockChainProvider::TrustedFullNode => {
                 let bio = Box::new(BitcoinCoreIO::new(
                     BitcoinCoreClient::new(&cfg.url, &cfg.user, &cfg.password)));
                 let (default_wallet, _) = WalletWithTrustedFullNode::new(
                     WalletConfig::with_db_path(db_path), bio, mode).unwrap();
-                Box::<dyn Wallet + Send>::new(default_wallet)
+                Box::new(default_wallet)
             }
             BlockChainProvider::Electrumx => {
                 let (electrumx_wallet, _) = ElectrumxWallet::new(
                     WalletConfig::with_db_path(db_path), mode).unwrap();
-                Box::<dyn Wallet + Send>::new(electrumx_wallet)
+                Box::new(electrumx_wallet)
             }
         };
         launch_server_new(wallet, DEFAULT_WALLET_RPC_PORT);
