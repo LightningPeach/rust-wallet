@@ -425,7 +425,7 @@ impl WalletLibraryInterface for WalletLibrary {
                     let hash = tx.signature_hash(i, &pk_script, 0x1);
                     let signature = ctx.sign(&Message::from_slice(&hash[..]).unwrap(), &sk.key);
 
-                    let mut serialized_sig = signature.serialize_der();
+                    let mut serialized_sig = signature.serialize_der().to_vec();
                     serialized_sig.push(0x1);
 
                     let script = Builder::new()
@@ -447,7 +447,7 @@ impl WalletLibraryInterface for WalletLibrary {
                     let signature =
                         ctx.sign(&Message::from_slice(&tx_sig_hash[..]).unwrap(), &sk.key);
 
-                    let mut serialized_sig = signature.serialize_der();
+                    let mut serialized_sig = signature.serialize_der().to_vec();
                     serialized_sig.push(0x1);
 
                     tx.input[i].witness.push(serialized_sig);
@@ -469,7 +469,7 @@ impl WalletLibraryInterface for WalletLibrary {
                     let signature =
                         ctx.sign(&Message::from_slice(&tx_sig_hash[..]).unwrap(), &sk.key);
 
-                    let mut serialized_sig = signature.serialize_der();
+                    let mut serialized_sig = signature.serialize_der().to_vec();
                     serialized_sig.push(0x1);
 
                     tx.input[i].witness.push(serialized_sig);

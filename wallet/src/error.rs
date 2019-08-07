@@ -88,7 +88,7 @@ impl fmt::Display for WalletError {
 
 impl fmt::Debug for WalletError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        (self as &fmt::Display).fmt(f)
+        (self as &dyn fmt::Display).fmt(f)
     }
 }
 

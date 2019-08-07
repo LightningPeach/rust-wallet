@@ -17,15 +17,15 @@ name = "gen_protos"
 path = "src/bin/gen_protos.rs"
 
 [dependencies.bitcoin]
-version = "0.18"
+git = "https://github.com/LightningPeach/rust-bitcoin.git"
 features = ["use-serde"]
 
 [dependencies.bitcoin_hashes]
-version = "0.3"
+version = "0.7"
+features = ["serde"]
 
 [dependencies]
 wallet = { path = "../wallet" }
-bitcoin_core_io = { path = "../bitcoin_core_io" }
 
 protoc-rust-grpc = "0.6"
 grpc = "0.6"
@@ -33,7 +33,7 @@ protobuf = "2.4"
 tls-api = "0.1"
 tls-api-native-tls = "0.1"
 crossbeam = "0.7"
-bitcoin_rpc_client = { git = "https://github.com/LightningPeach/bitcoinrpc-rust-client.git" }
+bitcoin_rpc_client = { git = "https://github.com/LightningPeach/bitcoinrpc-rust-client.git", package = "bitcoincore-rpc" }
 log = "0.4"
 hex = "0.3"
 clap = "2.32"

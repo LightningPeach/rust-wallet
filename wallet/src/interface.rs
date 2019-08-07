@@ -18,6 +18,7 @@ use bitcoin::{
 use bitcoin_hashes::sha256d::Hash as Sha256dHash;
 use super::account::{Account, AccountAddressType, Utxo};
 use super::walletlibrary::LockId;
+use bitcoin_rpc_client::{Client as BitcoinClient, RpcApi, Error as BitcoinClientError};
 
 use std::error::Error;
 
@@ -81,4 +82,24 @@ pub trait BlockChainIO {
     fn get_block_hash(&self, height: u32) -> Result<Sha256dHash, Self::Error>;
     fn get_block(&self, header_hash: &Sha256dHash) -> Result<Block, Self::Error>;
     fn send_raw_transaction(&self, tx: &Transaction) -> Result<Sha256dHash, Self::Error>;
+}
+
+impl BlockChainIO for BitcoinClient {
+    type Error = BitcoinClientError;
+
+    fn get_block_count(&self) -> Result<u32, Self::Error> {
+        RpcApi::get_block_count(self).map(|x| x as _)
+    }
+
+    fn get_block_hash(&self, height: u32) -> Result<Sha256dHash, Self::Error> {
+        RpcApi::get_block_hash(self, height as _)
+    }
+
+    fn get_block(&self, header_hash: &Sha256dHash) -> Result<Block, Self::Error> {
+        RpcApi::get_block(self, header_hash)
+    }
+
+    fn send_raw_transaction(&self, tx: &Transaction) -> Result<Sha256dHash, Self::Error> {
+        RpcApi::send_raw_transaction(self, tx)
+    }
 }

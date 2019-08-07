@@ -7,19 +7,18 @@ extern crate wallet;
 extern crate rand;
 extern crate log;
 extern crate simple_logger;
-extern crate bitcoin_core_io;
 
 use tc_coblox_bitcoincore::BitcoinCore;
 use testcontainers::{
     clients::DockerCli,
     Docker, Container,
 };
-use bitcoin_rpc_client::{BitcoinCoreClient, BitcoinRpcApi, Address};
+use bitcoin_rpc_client::{Client, RpcApi, Auth};
+use bitcoin::Address;
 use rand::{
     Rng, thread_rng,
     distributions::Alphanumeric,
 };
-use bitcoin_core_io::BitcoinCoreIO;
 
 use std::{
     thread,
@@ -39,18 +38,24 @@ use wallet::{
     interface::Wallet,
 };
 use wallet::mnemonic::Mnemonic;
+use wallet::interface::BlockChainIO;
 
 const ELECTRUMX_SERVER_SYNC_WITH_BLOCKCHAIN_DELAY_MS: u64 = 5000;
 const LAUNCH_ELECTRUMX_SERVER_DELAY_MS: u64 = 500;
 
+fn blockchain_io(cfg: &BitcoindConfig) -> impl BlockChainIO {
+    Client::new(cfg.url.clone(), Auth::UserPass(cfg.user.clone(), cfg.password.clone())).unwrap()
+}
+
 fn bitcoind_init(
     node: &Container<DockerCli, BitcoinCore>,
-) -> (BitcoinCoreClient, BitcoindConfig, u32) {
+) -> (Client, BitcoindConfig, u32) {
     let host_port = node.get_host_port(18443).unwrap();
     let zmq_port = node.get_host_port(18501).unwrap();
     let url = format!("http://localhost:{}", host_port);
     let auth = node.image().auth();
-    let bitcoind_client = BitcoinCoreClient::new(url.as_str(), auth.username(), auth.password());
+    let auth_ = Auth::UserPass(auth.username().to_owned(), auth.password().to_owned());
+    let bitcoind_client = Client::new(url.clone(), auth_.clone()).unwrap();
     let cfg = BitcoindConfig::new(
         url,
         auth.username().to_owned(),
@@ -77,7 +82,7 @@ enum BlockChainProvider {
 
 fn generate_money_for_wallet(
     af: &mut Box<dyn Wallet>,
-    bitcoind_client: &BitcoinCoreClient,
+    bitcoind_client: &Client,
     provider: BlockChainProvider,
 ) {
     // generate money to p2pkh addresses
@@ -90,12 +95,10 @@ fn generate_money_for_wallet(
         .new_change_address(AccountAddressType::P2PKH)
         .unwrap();
     bitcoind_client
-        .send_to_address(&Address::from_str(&addr).unwrap(), 1.0)
-        .unwrap()
+        .send_to_address(&Address::from_str(&addr).unwrap(), 1.0, None, None, None, None, None, None)
         .unwrap();
     bitcoind_client
-        .send_to_address(&Address::from_str(&change_addr).unwrap(), 1.0)
-        .unwrap()
+        .send_to_address(&Address::from_str(&change_addr).unwrap(), 1.0, None, None, None, None, None, None)
         .unwrap();
 
     // generate money to p2shwh addresses
@@ -108,12 +111,10 @@ fn generate_money_for_wallet(
         .new_change_address(AccountAddressType::P2SHWH)
         .unwrap();
     bitcoind_client
-        .send_to_address(&Address::from_str(&addr).unwrap(), 1.0)
-        .unwrap()
+        .send_to_address(&Address::from_str(&addr).unwrap(), 1.0, None, None, None, None, None, None)
         .unwrap();
     bitcoind_client
-        .send_to_address(&Address::from_str(&change_addr).unwrap(), 1.0)
-        .unwrap()
+        .send_to_address(&Address::from_str(&change_addr).unwrap(), 1.0, None, None, None, None, None, None)
         .unwrap();
 
     // generate money to p2wkh addresses
@@ -126,15 +127,13 @@ fn generate_money_for_wallet(
         .new_change_address(AccountAddressType::P2WKH)
         .unwrap();
     bitcoind_client
-        .send_to_address(&Address::from_str(&addr).unwrap(), 1.0)
-        .unwrap()
+        .send_to_address(&Address::from_str(&addr).unwrap(), 1.0, None, None, None, None, None, None)
         .unwrap();
     bitcoind_client
-        .send_to_address(&Address::from_str(&change_addr).unwrap(), 1.0)
-        .unwrap()
+        .send_to_address(&Address::from_str(&change_addr).unwrap(), 1.0, None, None, None, None, None, None)
         .unwrap();
 
-    bitcoind_client.generate(1).unwrap().unwrap();
+    bitcoind_client.generate(1, None).unwrap();
     if provider == BlockChainProvider::Electrumx {
         thread::sleep(Duration::from_millis(
             ELECTRUMX_SERVER_SYNC_WITH_BLOCKCHAIN_DELAY_MS,
@@ -188,16 +187,12 @@ fn sanity_check(provider: BlockChainProvider) {
         }
         BlockChainProvider::TrustedFullNode => None,
     };
-    bitcoind_client.generate(110).unwrap().unwrap();
+    bitcoind_client.generate(110, None).unwrap();
 
     // initialize wallet with blockchain source
     let mut wallet: Box<dyn Wallet> = match provider {
         BlockChainProvider::TrustedFullNode => {
-            let bio = BitcoinCoreIO::new(BitcoinCoreClient::new(
-                &cfg.url,
-                &cfg.user,
-                &cfg.password,
-            ));
+            let bio = blockchain_io(&cfg);
             let (default_wallet, _) = WalletWithTrustedFullNode::new(
                 WalletConfig::with_db_path(tmp_db_path()),
                 bio,
@@ -224,10 +219,9 @@ fn sanity_check(provider: BlockChainProvider) {
         .new_address(AccountAddressType::P2WKH)
         .unwrap();
     bitcoind_client
-        .send_to_address(&Address::from_str(&dest_addr).unwrap(), 1.0)
-        .unwrap()
+        .send_to_address(&Address::from_str(&dest_addr).unwrap(), 1.0, None, None, None, None, None, None)
         .unwrap();
-    bitcoind_client.generate(1).unwrap().unwrap();
+    bitcoind_client.generate(1, None).unwrap();
     if provider == BlockChainProvider::Electrumx {
         thread::sleep(Duration::from_millis(
             ELECTRUMX_SERVER_SYNC_WITH_BLOCKCHAIN_DELAY_MS,
@@ -259,16 +253,12 @@ fn base_wallet_functionality(provider: BlockChainProvider) {
         }
         BlockChainProvider::TrustedFullNode => None,
     };
-    bitcoind_client.generate(110).unwrap().unwrap();
+    bitcoind_client.generate(110, None).unwrap();
 
     // initialize wallet with blockchain source and generated money
     let mut wallet: Box<dyn Wallet> = match provider {
         BlockChainProvider::TrustedFullNode => {
-            let bio = BitcoinCoreIO::new(BitcoinCoreClient::new(
-                &cfg.url,
-                &cfg.user,
-                &cfg.password,
-            ));
+            let bio = blockchain_io(&cfg);
             let (default_wallet, _) = WalletWithTrustedFullNode::new(
                 WalletConfig::with_db_path(tmp_db_path()),
                 bio,
@@ -303,8 +293,7 @@ fn base_wallet_functionality(provider: BlockChainProvider) {
         .unwrap();
     let tx = wallet.make_tx(ops, dest_addr, 150_000_000, true).unwrap();
     bitcoind_client
-        .get_raw_transaction_serialized(&tx.txid())
-        .unwrap()
+        .get_raw_transaction(&tx.txid(), None)
         .unwrap();
 
     if provider == BlockChainProvider::Electrumx {
@@ -330,7 +319,7 @@ fn base_persistent_storage(provider: BlockChainProvider) {
         }
         BlockChainProvider::TrustedFullNode => None,
     };
-    bitcoind_client.generate(110).unwrap().unwrap();
+    bitcoind_client.generate(110, None).unwrap();
 
     let db_path = tmp_db_path();
 
@@ -339,11 +328,7 @@ fn base_persistent_storage(provider: BlockChainProvider) {
         // additional scope destroys wallet object(aka wallet restart)
         let mut wallet: Box<dyn Wallet> = match provider {
             BlockChainProvider::TrustedFullNode => {
-                let bio = BitcoinCoreIO::new(BitcoinCoreClient::new(
-                    &cfg.url,
-                    &cfg.user,
-                    &cfg.password,
-                ));
+                let bio = blockchain_io(&cfg);
                 let (default_wallet, _) = WalletWithTrustedFullNode::new(
                     WalletConfig::with_db_path(db_path.clone()),
                     bio,
@@ -368,10 +353,9 @@ fn base_persistent_storage(provider: BlockChainProvider) {
             .new_address(AccountAddressType::P2WKH)
             .unwrap();
         bitcoind_client
-            .send_to_address(&Address::from_str(&dest_addr).unwrap(), 1.0)
-            .unwrap()
+            .send_to_address(&Address::from_str(&dest_addr).unwrap(), 1.0, None, None, None, None, None, None)
             .unwrap();
-        bitcoind_client.generate(1).unwrap().unwrap();
+        bitcoind_client.generate(1, None).unwrap();
         if provider == BlockChainProvider::Electrumx {
             thread::sleep(Duration::from_millis(
                 ELECTRUMX_SERVER_SYNC_WITH_BLOCKCHAIN_DELAY_MS,
@@ -384,11 +368,7 @@ fn base_persistent_storage(provider: BlockChainProvider) {
     // recover wallet's state from persistent storage
     let mut wallet: Box<dyn Wallet> = match provider {
         BlockChainProvider::TrustedFullNode => {
-            let bio = BitcoinCoreIO::new(BitcoinCoreClient::new(
-                &cfg.url,
-                &cfg.user,
-                &cfg.password,
-            ));
+            let bio = blockchain_io(&cfg);
             let (default_wallet, _) = WalletWithTrustedFullNode::new(
                 WalletConfig::with_db_path(db_path.clone()),
                 bio,
@@ -417,10 +397,9 @@ fn base_persistent_storage(provider: BlockChainProvider) {
         .new_address(AccountAddressType::P2WKH)
         .unwrap();
     bitcoind_client
-        .send_to_address(&Address::from_str(&dest_addr).unwrap(), 1.0)
-        .unwrap()
+        .send_to_address(&Address::from_str(&dest_addr).unwrap(), 1.0, None, None, None, None, None, None)
         .unwrap();
-    bitcoind_client.generate(1).unwrap().unwrap();
+    bitcoind_client.generate(1, None).unwrap();
     if provider == BlockChainProvider::Electrumx {
         thread::sleep(Duration::from_millis(
             ELECTRUMX_SERVER_SYNC_WITH_BLOCKCHAIN_DELAY_MS,
@@ -452,7 +431,7 @@ fn extended_persistent_storage(provider: BlockChainProvider) {
         }
         BlockChainProvider::TrustedFullNode => None,
     };
-    bitcoind_client.generate(110).unwrap().unwrap();
+    bitcoind_client.generate(110, None).unwrap();
 
     let db_path = tmp_db_path();
 
@@ -461,11 +440,7 @@ fn extended_persistent_storage(provider: BlockChainProvider) {
         // additional scope destroys wallet object(aka wallet restart)
         let mut wallet: Box<dyn Wallet> = match provider {
             BlockChainProvider::TrustedFullNode => {
-                let bio = BitcoinCoreIO::new(BitcoinCoreClient::new(
-                    &cfg.url,
-                    &cfg.user,
-                    &cfg.password,
-                ));
+                let bio = blockchain_io(&cfg);
                 let (default_wallet, _) = WalletWithTrustedFullNode::new(
                     WalletConfig::with_db_path(db_path.clone()),
                     bio,
@@ -491,11 +466,7 @@ fn extended_persistent_storage(provider: BlockChainProvider) {
         // additional scope destroys wallet object(aka wallet restart)
         let mut wallet: Box<dyn Wallet> = match provider {
             BlockChainProvider::TrustedFullNode => {
-                let bio = BitcoinCoreIO::new(BitcoinCoreClient::new(
-                    &cfg.url,
-                    &cfg.user,
-                    &cfg.password,
-                ));
+                let bio = blockchain_io(&cfg);
                 let (default_wallet, _) = WalletWithTrustedFullNode::new(
                     WalletConfig::with_db_path(db_path.clone()),
                     bio,
@@ -529,10 +500,9 @@ fn extended_persistent_storage(provider: BlockChainProvider) {
             .collect();
         let tx = wallet.make_tx(ops, dest_addr, 150_000_000, true).unwrap();
         bitcoind_client
-            .get_raw_transaction_serialized(&tx.txid())
-            .unwrap()
+            .get_raw_transaction(&tx.txid(), None)
             .unwrap();
-        bitcoind_client.generate(1).unwrap().unwrap();
+        bitcoind_client.generate(1, None).unwrap();
         // It seems that electrumx server has some bugs so we should to restart it time-to-time
         // TODO(evg): find out and fix problem in electrumx server
         if provider == BlockChainProvider::Electrumx {
@@ -561,11 +531,7 @@ fn extended_persistent_storage(provider: BlockChainProvider) {
     // recover wallet's state from persistent storage
     let wallet: Box<dyn Wallet> = match provider {
         BlockChainProvider::TrustedFullNode => {
-            let bio = BitcoinCoreIO::new(BitcoinCoreClient::new(
-                &cfg.url,
-                &cfg.user,
-                &cfg.password,
-            ));
+            let bio = blockchain_io(&cfg);
             let (default_wallet, _) = WalletWithTrustedFullNode::new(
                 WalletConfig::with_db_path(db_path),
                 bio,
@@ -610,7 +576,7 @@ fn restore_from_mnemonic(provider: BlockChainProvider) {
         }
         BlockChainProvider::TrustedFullNode => None,
     };
-    bitcoind_client.generate(110).unwrap().unwrap();
+    bitcoind_client.generate(110, None).unwrap();
 
     let db_path = tmp_db_path();
 
@@ -619,11 +585,7 @@ fn restore_from_mnemonic(provider: BlockChainProvider) {
         // additional scope destroys wallet object(aka wallet restart)
         let (mut wallet, mnemonic): (Box<dyn Wallet>, Mnemonic) = match provider {
             BlockChainProvider::TrustedFullNode => {
-                let bio = BitcoinCoreIO::new(BitcoinCoreClient::new(
-                    &cfg.url,
-                    &cfg.user,
-                    &cfg.password,
-                ));
+                let bio = blockchain_io(&cfg);
                 let (default_wallet, mnemonic) = WalletWithTrustedFullNode::new(
                     WalletConfig::with_db_path(db_path.clone()),
                     bio,
@@ -660,11 +622,7 @@ fn restore_from_mnemonic(provider: BlockChainProvider) {
     );
     let mut wallet: Box<dyn Wallet> = match provider {
         BlockChainProvider::TrustedFullNode => {
-            let bio = BitcoinCoreIO::new(BitcoinCoreClient::new(
-                &cfg.url,
-                &cfg.user,
-                &cfg.password,
-            ));
+            let bio = blockchain_io(&cfg);
             let (default_wallet, _) = WalletWithTrustedFullNode::new(
                 wc,
                 bio,
@@ -690,10 +648,9 @@ fn restore_from_mnemonic(provider: BlockChainProvider) {
         .new_address(AccountAddressType::P2WKH)
         .unwrap();
     bitcoind_client
-        .send_to_address(&Address::from_str(&dest_addr).unwrap(), 1.0)
-        .unwrap()
+        .send_to_address(&Address::from_str(&dest_addr).unwrap(), 1.0, None, None, None, None, None, None)
         .unwrap();
-    bitcoind_client.generate(1).unwrap().unwrap();
+    bitcoind_client.generate(1, None).unwrap();
     if provider == BlockChainProvider::Electrumx {
         thread::sleep(Duration::from_millis(
             ELECTRUMX_SERVER_SYNC_WITH_BLOCKCHAIN_DELAY_MS,
@@ -725,16 +682,12 @@ fn make_tx_call(provider: BlockChainProvider) {
             Some(electrs_process)
         }
     };
-    bitcoind_client.generate(110).unwrap().unwrap();
+    bitcoind_client.generate(110, None).unwrap();
 
     // initialize wallet with blockchain source and generated money
     let mut wallet: Box<dyn Wallet> = match provider {
         BlockChainProvider::TrustedFullNode => {
-            let bio = BitcoinCoreIO::new(BitcoinCoreClient::new(
-                &cfg.url,
-                &cfg.user,
-                &cfg.password,
-            ));
+            let bio = blockchain_io(&cfg);
             let (default_wallet, _) = WalletWithTrustedFullNode::new(
                 WalletConfig::with_db_path(tmp_db_path()),
                 bio,
@@ -770,10 +723,9 @@ fn make_tx_call(provider: BlockChainProvider) {
         .unwrap();
     let tx = wallet.make_tx(ops, dest_addr, 150_000_000, true).unwrap();
     bitcoind_client
-        .get_raw_transaction_serialized(&tx.txid())
-        .unwrap()
+        .get_raw_transaction(&tx.txid(), None)
         .unwrap();
-    bitcoind_client.generate(1).unwrap().unwrap();
+    bitcoind_client.generate(1, None).unwrap();
     // It seems that electrumx server has some bugs so we should to restart it time-to-time
     // TODO(evg): find out and fix problem in electrumx server
     if provider == BlockChainProvider::Electrumx {
@@ -829,16 +781,12 @@ fn send_coins_call(provider: BlockChainProvider) {
             Some(electrs_process)
         }
     };
-    bitcoind_client.generate(110).unwrap().unwrap();
+    bitcoind_client.generate(110, None).unwrap();
 
     // initialize wallet with blockchain source and generated money
     let mut wallet: Box<dyn Wallet> = match provider {
         BlockChainProvider::TrustedFullNode => {
-            let bio = BitcoinCoreIO::new(BitcoinCoreClient::new(
-                &cfg.url,
-                &cfg.user,
-                &cfg.password,
-            ));
+            let bio = blockchain_io(&cfg);
             let (default_wallet, _) = WalletWithTrustedFullNode::new(
                 WalletConfig::with_db_path(tmp_db_path()),
                 bio,
@@ -869,10 +817,9 @@ fn send_coins_call(provider: BlockChainProvider) {
         .send_coins(dest_addr, 150_000_000, false, false, true)
         .unwrap();
     bitcoind_client
-        .get_raw_transaction_serialized(&tx.txid())
-        .unwrap()
+        .get_raw_transaction(&tx.txid(), None)
         .unwrap();
-    bitcoind_client.generate(1).unwrap().unwrap();
+    bitcoind_client.generate(1, None).unwrap();
 
     // It seems that electrumx server has some bugs so we should to restart it time-to-time
     // TODO(evg): find out and fix problem in electrumx server
@@ -929,16 +876,12 @@ fn lock_coins_flag_success(provider: BlockChainProvider) {
             Some(electrs_process)
         }
     };
-    bitcoind_client.generate(110).unwrap().unwrap();
+    bitcoind_client.generate(110, None).unwrap();
 
     // initialize wallet with blockchain source and generated money
     let mut wallet: Box<dyn Wallet> = match provider {
         BlockChainProvider::TrustedFullNode => {
-            let bio = BitcoinCoreIO::new(BitcoinCoreClient::new(
-                &cfg.url,
-                &cfg.user,
-                &cfg.password,
-            ));
+            let bio = blockchain_io(&cfg);
             let (default_wallet, _) = WalletWithTrustedFullNode::new(
                 WalletConfig::with_db_path(tmp_db_path()),
                 bio,
@@ -1006,16 +949,12 @@ fn lock_coins_flag_fail(provider: BlockChainProvider) {
             Some(electrs_process)
         }
     };
-    bitcoind_client.generate(110).unwrap().unwrap();
+    bitcoind_client.generate(110, None).unwrap();
 
     // initialize wallet with blockchain source and generated money
     let mut wallet: Box<dyn Wallet> = match provider {
         BlockChainProvider::TrustedFullNode => {
-            let bio = BitcoinCoreIO::new(BitcoinCoreClient::new(
-                &cfg.url,
-                &cfg.user,
-                &cfg.password,
-            ));
+            let bio = blockchain_io(&cfg);
             let (default_wallet, _) = WalletWithTrustedFullNode::new(
                 WalletConfig::with_db_path(tmp_db_path()),
                 bio,

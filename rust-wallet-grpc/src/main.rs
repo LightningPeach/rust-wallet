@@ -14,7 +14,6 @@
 // limitations under the License.
 
 use clap::{Arg, App};
-use bitcoin_rpc_client::BitcoinCoreClient;
 
 use std::str::FromStr;
 
@@ -33,6 +32,8 @@ use wallet::{
 use rust_wallet_grpc::server::{launch_server_new, DEFAULT_WALLET_RPC_PORT};
 
 fn main() {
+    use bitcoin_rpc_client::{Client, Auth};
+
     let default_wallet_rpc_port_str: &str = &DEFAULT_WALLET_RPC_PORT.to_string();
 
     let matches = App::new("wallet")
@@ -125,11 +126,10 @@ fn main() {
         println!("{}", mnemonic.to_string());
         Box::new(electrumx_wallet)
     } else {
-        let bio = BitcoinCoreIO::new(BitcoinCoreClient::new(
-            &cfg.url,
-            &cfg.user,
-            &cfg.password,
-        ));
+        let bio = BitcoinCoreIO::new(Client::new(
+            cfg.url,
+            Auth::UserPass(cfg.user, cfg.password)
+        ).unwrap());
         let (default_wallet, mnemonic) = WalletWithTrustedFullNode::new(
             wc,
             bio,
