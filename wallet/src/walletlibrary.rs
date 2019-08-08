@@ -40,13 +40,13 @@ use std::{
     str::FromStr,
 };
 
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 
 use super::error::WalletError;
 use super::mnemonic::Mnemonic;
 use super::keyfactory::{KeyFactory, MasterKeyEntropy};
 use super::account::{Account, AccountAddressType, Utxo, KeyPath, AddressChain};
-use super::db::DB;
+use super::DB;
 use super::interface::WalletLibraryInterface;
 
 pub static DEFAULT_BITCOIND_RPC_CONNECT: &'static str = "http://127.0.0.1:18332";
@@ -184,7 +184,7 @@ impl Default for WalletConfig {
     }
 }
 
-#[derive(Eq, PartialEq, Hash, Clone, Serialize)]
+#[derive(Eq, PartialEq, Hash, Clone, Serialize, Deserialize)]
 pub struct LockId(u64);
 
 impl LockId {
@@ -210,7 +210,7 @@ impl From<LockId> for u64 {
 }
 
 // TODO(evg): impl iter?
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize,  Clone)]
 pub struct LockGroup(Vec<OutPoint>);
 
 struct LockGroupMap(HashMap<LockId, LockGroup>);
@@ -604,7 +604,7 @@ impl WalletLibrary {
         wc: WalletConfig,
         mode: WalletLibraryMode,
     ) -> Result<(WalletLibrary, Mnemonic), WalletError> {
-        let db = DB::new(wc.db_path);
+        let mut db = DB::new(wc.db_path);
         let last_seen_block_height = db.get_last_seen_block_height();
         let op_to_utxo = db.get_utxo_map();
         let (master_key, mnemonic) = match mode {

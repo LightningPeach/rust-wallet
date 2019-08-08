@@ -161,7 +161,7 @@ pub struct Account {
     db: Arc<RwLock<DB>>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct SecretKeyHelper {
     pub addr_type: AccountAddressType,
     addr_chain: AddressChain,

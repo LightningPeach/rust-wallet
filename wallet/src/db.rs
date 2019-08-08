@@ -71,7 +71,7 @@ impl DB {
             .map(|v| v.to_vec())
     }
 
-    pub fn put_bip39_randomness(&self, randomness: &[u8]) {
+    pub fn put_bip39_randomness(&mut self, randomness: &[u8]) {
         self.0.put(BIP39_RANDOMNESS, randomness).unwrap();
     }
 

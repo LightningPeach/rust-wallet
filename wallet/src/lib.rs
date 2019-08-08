@@ -23,5 +23,14 @@ pub mod electrumx;
 pub mod account;
 pub mod interface;
 
+#[cfg(not(target_arch = "wasm32"))]
 mod db;
+
+#[cfg(not(target_arch = "wasm32"))]
 use self::db::DB;
+
+#[cfg(target_arch = "wasm32")]
+mod storage;
+
+#[cfg(target_arch = "wasm32")]
+use self::storage::DB;
