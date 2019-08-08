@@ -40,8 +40,8 @@ use wallet::{
 use wallet::mnemonic::Mnemonic;
 use wallet::interface::BlockChainIO;
 
-const ELECTRUMX_SERVER_SYNC_WITH_BLOCKCHAIN_DELAY_MS: u64 = 5000;
-const LAUNCH_ELECTRUMX_SERVER_DELAY_MS: u64 = 500;
+const ELECTRUMX_SERVER_SYNC_WITH_BLOCKCHAIN_DELAY_MS: u64 = 10000;
+const LAUNCH_ELECTRUMX_SERVER_DELAY_MS: u64 = 1000;
 
 fn blockchain_io(cfg: &BitcoindConfig) -> impl BlockChainIO {
     Client::new(cfg.url.clone(), Auth::UserPass(cfg.user.clone(), cfg.password.clone())).unwrap()
