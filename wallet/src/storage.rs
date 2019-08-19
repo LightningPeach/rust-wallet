@@ -65,12 +65,19 @@ impl DB {
     }
 
     pub fn get_full_address_list(&self) -> Vec<String> {
-        self.state.full_address_list.clone()
+        [
+            self.state.p2pkh_address_list.clone(),
+            self.state.p2shwh_address_list.clone(),
+            self.state.p2wkh_address_list.clone(),
+        ].concat()
     }
 
     pub fn get_account_address_list(&self, addr_type: AccountAddressType) -> Vec<String> {
-        let _ = addr_type;
-        unimplemented!()
+        match addr_type {
+            AccountAddressType::P2PKH => self.state.p2pkh_address_list.clone(),
+            AccountAddressType::P2SHWH => self.state.p2shwh_address_list.clone(),
+            AccountAddressType::P2WKH => self.state.p2wkh_address_list.clone(),
+        }
     }
 
     pub fn put_external_public_key(&mut self, key_helper: &SecretKeyHelper, pk: &PublicKey) {
@@ -83,9 +90,13 @@ impl DB {
         self.store();
     }
 
-    pub fn put_address(&self, addr_type: AccountAddressType, address: String) {
-        let _ = (addr_type, address);
-        unimplemented!()
+    pub fn put_address(&mut self, addr_type: AccountAddressType, address: String) {
+        match addr_type {
+            AccountAddressType::P2PKH => self.state.p2pkh_address_list.push(address),
+            AccountAddressType::P2SHWH => self.state.p2shwh_address_list.push(address),
+            AccountAddressType::P2WKH => self.state.p2wkh_address_list.push(address),
+        }
+        self.store();
     }
 
     pub fn put_lock_group(&mut self, lock_id: &LockId, lock_group: &LockGroup) {
@@ -101,7 +112,8 @@ pub struct State {
     utxo_map: HashMap<OutPoint, Utxo>,
     external_public_key_list: Vec<(SecretKeyHelper, PublicKey)>,
     internal_public_key_list: Vec<(SecretKeyHelper, PublicKey)>,
-    full_address_list: Vec<String>,
-    account_address_list: Vec<String>,
+    p2pkh_address_list: Vec<String>,
+    p2shwh_address_list: Vec<String>,
+    p2wkh_address_list: Vec<String>,
     lock_group: HashMap<LockId, LockGroup>
 }

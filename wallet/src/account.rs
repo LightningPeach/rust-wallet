@@ -357,7 +357,7 @@ mod test {
     use bitcoin::{
         network::constants::Network,
         Block, Transaction,
-};
+    };
     use bitcoin_hashes::sha256d::Hash as Sha256dHash;
     use std::{fmt, error::Error};
 
