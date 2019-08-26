@@ -149,6 +149,7 @@ impl Default for KeyGenConfig {
     }
 }
 
+#[derive(Clone)]
 pub struct WalletConfig {
     network: Network,
     passphrase: String,

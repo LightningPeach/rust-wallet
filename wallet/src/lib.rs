@@ -22,6 +22,7 @@ pub mod default;
 pub mod electrumx;
 pub mod account;
 pub mod interface;
+pub mod context;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod db;

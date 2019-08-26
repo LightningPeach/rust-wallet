@@ -11,6 +11,10 @@ keywords = [ "crypto", "bitcoin" ]
 readme = "README.md"
 edition = "2018"
 
+[[bin]]
+name = "environment"
+path = "src/environment.rs"
+
 [lib]
 name = "wallet"
 path = "src/lib.rs"
@@ -35,7 +39,7 @@ features = ["derive"]
 version = "1.0"
 
 [dependencies]
-rust-crypto = { git = "ssh://git@github.com/LightningPeach/rust-crypto" }
+rust-crypto = { git = "https://github.com/LightningPeach/rust-crypto.git" }
 log = "0.4"
 simple_logger = "1.0"
 hex = "0.3"
@@ -56,5 +60,3 @@ features = ["wasm-bindgen"]
 
 [dev-dependencies]
 rustc-serialize = "0.3"
-tc_coblox_bitcoincore = { git = "https://github.com/rust-bitcoin-tools/testcontainers-rs.git", branch = "zmq_support" }
-testcontainers = { git = "https://github.com/rust-bitcoin-tools/testcontainers-rs.git", branch = "zmq_support" }

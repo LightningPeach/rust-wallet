@@ -19,7 +19,7 @@ Optionally install `electrumx`. Run in some `tmp` directory:
 ```
 git clone https://github.com/romanz/electrs
 cd electrs
-git checkout e49cef1bbcaf1710613dab4578d61b99c7dbd478
+git checkout a61e1b3b7a150c52188fc7c412233068c156c56b
 cargo install --debug --path .
 ```
 
