@@ -69,6 +69,7 @@ test!(make_tx_call);
 test!(send_coins_call);
 test!(lock_coins_flag_success);
 test!(lock_coins_flag_fail);
+test!(coinbase);
 
 fn sanity_check<F>(make_context: F)
 where
@@ -399,6 +400,29 @@ where
     // should finish with error, no available coins left
     let result = context.wallet_mut().send_coins(dest_addr, 200_000_000 - 10_000, false, false, true);
     assert!(result.is_err());
+}
+
+fn coinbase<F>(make_context: F)
+where
+    F: Fn(WalletLibraryMode) -> (WalletContext, Mnemonic),
+{
+    use std::str::FromStr;
+
+    let (mut context, _) = make_context(WalletLibraryMode::Create(KeyGenConfig::default()));
+    let _ = context.bitcoind_mut().generate(110, None).unwrap();
+
+    let destination_address = {
+        let s = context.wallet_mut()
+            .wallet_lib_mut().new_address(AccountAddressType::P2WKH).unwrap();
+        Address::from_str(s.as_str()).unwrap()
+    };
+
+    let _ = context.bitcoind_mut()
+        .generate_to_address(1, &destination_address).unwrap();
+    context.block_for_sync();
+    context.wallet_mut().sync_with_tip().unwrap();
+    let balance_satoshi = context.wallet_mut().wallet_lib().wallet_balance();
+    assert!(balance_satoshi > 0);
 }
 
 // TODO(evg): tests for lock persistence
