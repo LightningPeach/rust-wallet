@@ -55,6 +55,9 @@ impl GlobalContext {
     }
 
     pub fn bitcoind(&self, zmqpubrawblock_port: u16, zmqpubrawtx_port: u16) -> Result<Child, io::Error> {
+        use std::{thread, time::Duration};
+        use bitcoin_rpc_client::RpcApi;
+
         let auth_args = match &self.bitcoind_auth {
             &Auth::None => vec![],
             &Auth::CookieFile(_) => vec![],
@@ -64,14 +67,20 @@ impl GlobalContext {
             ],
         };
 
-        Command::new("bitcoind")
+        let r = Command::new("bitcoind")
             .args(&["-deprecatedrpc=generate"])
             .args(auth_args)
             .arg(format!("-{}", self.network.clone()))
+            .arg(format!("-txindex"))
             .arg(format!("-rpcport={}", self.port))
             .arg(format!("-zmqpubrawblock=tcp://127.0.0.1:{}", zmqpubrawblock_port))
             .arg(format!("-zmqpubrawtx=tcp://127.0.0.1:{}", zmqpubrawtx_port))
-            .spawn()
+            .spawn()?;
+        thread::sleep(Duration::from_millis(2_000));
+
+        let _ = self.client().unwrap().generate(1, None).unwrap();
+
+        Ok(r)
     }
 
     pub fn electrs(&self) -> Result<Child, io::Error> {
