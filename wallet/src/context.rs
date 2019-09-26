@@ -114,7 +114,8 @@ impl GlobalContext {
 
     pub fn electrs_context(&self, mode: WalletLibraryMode) -> Result<(WalletContext, Mnemonic), Box<dyn Error>> {
         let cfg = self.wallet_config.clone();
-        let (wallet, mnemonic) = ElectrumxWallet::new(cfg, mode)?;
+        let address = "127.0.0.1:60401".parse().unwrap();
+        let (wallet, mnemonic) = ElectrumxWallet::new(address, cfg, mode)?;
         Ok((WalletContext::Electrs {
             wallet: Box::new(wallet),
             bitcoind: self.client()?,

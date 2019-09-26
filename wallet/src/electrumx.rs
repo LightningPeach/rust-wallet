@@ -21,6 +21,7 @@ use hex;
 use std::{
     error::Error,
     collections::HashMap,
+    net::SocketAddr
 };
 
 use electrumx_client::{
@@ -34,7 +35,8 @@ use super::mnemonic::Mnemonic;
 
 pub struct ElectrumxWallet {
     pub wallet_lib: Box<dyn WalletLibraryInterface + Send>,
-    electrumx_client: ElectrumxClient<String>,
+    electrumx_address: SocketAddr,
+    electrumx_client: ElectrumxClient<SocketAddr>,
 }
 
 impl Wallet for ElectrumxWallet {
@@ -47,7 +49,7 @@ impl Wallet for ElectrumxWallet {
     }
 
     fn reconnect(&mut self) {
-        self.electrumx_client = ElectrumxClient::new("127.0.0.1:60401".to_string()).unwrap();
+        self.electrumx_client = ElectrumxClient::new(self.electrumx_address).unwrap();
     }
 
     fn send_coins(
@@ -134,15 +136,17 @@ impl Wallet for ElectrumxWallet {
 
 impl ElectrumxWallet {
     pub fn new(
+        electrumx_address: SocketAddr,
         wc: WalletConfig,
         mode: WalletLibraryMode,
     ) -> Result<(ElectrumxWallet, Mnemonic), WalletError> {
         let (wallet_lib, mnemonic) = WalletLibrary::new(wc, mode)?;
-        let electrumx_client = ElectrumxClient::new("127.0.0.1:60401".to_string()).unwrap();
+        let electrumx_client = ElectrumxClient::new(electrumx_address).unwrap();
 
         Ok((
             ElectrumxWallet {
                 wallet_lib: Box::new(wallet_lib),
+                electrumx_address,
                 electrumx_client,
             },
             mnemonic,
