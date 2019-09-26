@@ -15,6 +15,7 @@ pub struct GlobalContext {
     bitcoind_url: String,
     bitcoind_auth: Auth,
     port: u16,
+    electrum_port: Option<u16>,
     db_path: String,
     cookie: String,
     wallet_config: WalletConfig,
@@ -24,15 +25,16 @@ impl Default for GlobalContext {
     fn default() -> Self {
         let user = "devuser".to_owned();
         let password = "devpass".to_owned();
-        GlobalContext::new(Network::Regtest, 18443, user, password)
+        GlobalContext::new(Network::Regtest, user, password, None, None)
     }
 }
 
 impl GlobalContext {
-    pub fn new(network: Network, rpc_port: u16, user: String, password: String) -> Self {
+    pub fn new(network: Network, user: String, password: String, rpc_port: Option<u16>, electrum_rpc_port: Option<u16>) -> Self {
         use super::walletlibrary::WalletConfigBuilder;
         use std::time::{SystemTime, UNIX_EPOCH};
 
+        let rpc_port = rpc_port.unwrap_or(18443);
         let url = format!("http://127.0.0.1:{}", rpc_port);
         let auth = Auth::UserPass(user.clone(), password.clone());
 
@@ -48,6 +50,7 @@ impl GlobalContext {
             bitcoind_url: url,
             bitcoind_auth: auth,
             port: rpc_port,
+            electrum_port: electrum_rpc_port,
             cookie: format!("{}:{}", user, password),
             db_path: db_path,
             wallet_config: config,
@@ -94,6 +97,7 @@ impl GlobalContext {
             .arg(format!("--daemon-rpc-addr=127.0.0.1:{}", self.port))
             .arg(format!("--network={}", self.network))
             .arg(format!("--db-dir={}", self.db_path))
+            .args(self.electrum_port.iter().map(|&port| format!("--electrum-rpc-addr=127.0.0.1:{}", port)))
             .spawn();
         thread::sleep(Duration::from_millis(LAUNCH_ELECTRUMX_SERVER_DELAY_MS));
         electrs_process
@@ -114,7 +118,15 @@ impl GlobalContext {
 
     pub fn electrs_context(&self, mode: WalletLibraryMode) -> Result<(WalletContext, Mnemonic), Box<dyn Error>> {
         let cfg = self.wallet_config.clone();
-        let address = "127.0.0.1:60401".parse().unwrap();
+
+        let default_electrum_rpc_port = match self.network {
+            Network::Bitcoin => 50001,
+            Network::Testnet => 60001,
+            Network::Regtest => 60401,
+        };
+        let electrum_rpc_port = self.electrum_port.unwrap_or(default_electrum_rpc_port);
+
+        let address = format!("127.0.0.1:{}", electrum_rpc_port).parse().unwrap();
         let (wallet, mnemonic) = ElectrumxWallet::new(address, cfg, mode)?;
         Ok((WalletContext::Electrs {
             wallet: Box::new(wallet),
