@@ -3,7 +3,7 @@
 
 // https://github.com/Manishearth/rust-clippy/issues/702
 #![allow(unknown_lints)]
-#![allow(clippy)]
+#![allow(clippy::all)]
 
 #![cfg_attr(rustfmt, rustfmt_skip)]
 
@@ -44,7 +44,7 @@ pub trait Wallet {
 // client
 
 pub struct WalletClient {
-    grpc_client: ::grpc::Client,
+    grpc_client: ::std::sync::Arc<::grpc::Client>,
     method_NewAddress: ::std::sync::Arc<::grpc::rt::MethodDescriptor<super::walletrpc::NewAddressRequest, super::walletrpc::NewAddressResponse>>,
     method_NewChangeAddress: ::std::sync::Arc<::grpc::rt::MethodDescriptor<super::walletrpc::NewChangeAddressRequest, super::walletrpc::NewChangeAddressResponse>>,
     method_GetUtxoList: ::std::sync::Arc<::grpc::rt::MethodDescriptor<super::walletrpc::GetUtxoListRequest, super::walletrpc::GetUtxoListResponse>>,
@@ -56,8 +56,8 @@ pub struct WalletClient {
     method_Shutdown: ::std::sync::Arc<::grpc::rt::MethodDescriptor<super::walletrpc::ShutdownRequest, super::walletrpc::ShutdownResponse>>,
 }
 
-impl WalletClient {
-    pub fn with_client(grpc_client: ::grpc::Client) -> Self {
+impl ::grpc::ClientStub for WalletClient {
+    fn with_client(grpc_client: ::std::sync::Arc<::grpc::Client>) -> Self {
         WalletClient {
             grpc_client: grpc_client,
             method_NewAddress: ::std::sync::Arc::new(::grpc::rt::MethodDescriptor {
@@ -115,17 +115,6 @@ impl WalletClient {
                 resp_marshaller: Box::new(::grpc::protobuf::MarshallerProtobuf),
             }),
         }
-    }
-
-    pub fn new_plain(host: &str, port: u16, conf: ::grpc::ClientConf) -> ::grpc::Result<Self> {
-        ::grpc::Client::new_plain(host, port, conf).map(|c| {
-            WalletClient::with_client(c)
-        })
-    }
-    pub fn new_tls<C : ::tls_api::TlsConnector>(host: &str, port: u16, conf: ::grpc::ClientConf) -> ::grpc::Result<Self> {
-        ::grpc::Client::new_tls::<C>(host, port, conf).map(|c| {
-            WalletClient::with_client(c)
-        })
     }
 }
 
