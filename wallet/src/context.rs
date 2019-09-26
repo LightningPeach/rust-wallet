@@ -7,17 +7,16 @@ use super::{
     mnemonic::Mnemonic,
 };
 use bitcoin_rpc_client::{Client, Auth, Error as BitcoinError};
-use std::{process::{Child, Command}, error::Error, io};
+use std::{process::{Child, Command}, error::Error, io, net::SocketAddr};
 use bitcoin::network::constants::Network;
 
 pub struct GlobalContext {
     network: Network,
-    bitcoind_url: String,
-    bitcoind_auth: Auth,
-    port: u16,
-    electrum_port: Option<u16>,
+    bitcoin_auth: Auth,
+    bitcoin_socket_address: SocketAddr,
+    electrum_auth: String,
+    electrum_socket_address: Option<SocketAddr>,
     db_path: String,
-    cookie: String,
     wallet_config: WalletConfig,
 }
 
@@ -25,21 +24,27 @@ impl Default for GlobalContext {
     fn default() -> Self {
         let user = "devuser".to_owned();
         let password = "devpass".to_owned();
-        GlobalContext::new(Network::Regtest, user, password, None, None)
+        GlobalContext::new(Network::Regtest, user, password, None, None, None)
     }
 }
 
 impl GlobalContext {
-    pub fn new(network: Network, user: String, password: String, rpc_port: Option<u16>, electrum_rpc_port: Option<u16>) -> Self {
+    pub fn new(
+        network: Network,
+        user: String,
+        password: String,
+        db_path: Option<String>,
+        bitcoin_socket_address: Option<SocketAddr>,
+        electrum_socket_address: Option<SocketAddr>,
+    ) -> Self {
         use super::walletlibrary::WalletConfigBuilder;
         use std::time::{SystemTime, UNIX_EPOCH};
 
-        let rpc_port = rpc_port.unwrap_or(18443);
-        let url = format!("http://127.0.0.1:{}", rpc_port);
+        let bitcoin_socket_address = bitcoin_socket_address.unwrap_or("127.0.0.1:18443".parse().unwrap());
         let auth = Auth::UserPass(user.clone(), password.clone());
 
         let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
-        let db_path = format!("/tmp/test_{:?}", now.as_secs());
+        let db_path = db_path.unwrap_or(format!("/tmp/test_{:?}", now.as_secs()));
         let config = WalletConfigBuilder::new()
             .network(network.clone())
             .db_path(db_path.clone())
@@ -47,21 +52,22 @@ impl GlobalContext {
 
         GlobalContext {
             network: network,
-            bitcoind_url: url,
-            bitcoind_auth: auth,
-            port: rpc_port,
-            electrum_port: electrum_rpc_port,
-            cookie: format!("{}:{}", user, password),
+            bitcoin_auth: auth,
+            bitcoin_socket_address: bitcoin_socket_address,
+            electrum_auth: format!("{}:{}", user, password),
+            electrum_socket_address: electrum_socket_address,
             db_path: db_path,
             wallet_config: config,
         }
     }
 
-    pub fn bitcoind(&self, zmqpubrawblock_port: u16, zmqpubrawtx_port: u16) -> Result<Child, io::Error> {
+    pub fn bitcoind(&self, zmqpubrawblock: String, zmqpubrawtx: String) -> Result<Child, io::Error> {
         use std::{thread, time::Duration};
         use bitcoin_rpc_client::RpcApi;
 
-        let auth_args = match &self.bitcoind_auth {
+        assert!(self.bitcoin_socket_address.ip().is_loopback());
+
+        let auth_args = match &self.bitcoin_auth {
             &Auth::None => vec![],
             &Auth::CookieFile(_) => vec![],
             &Auth::UserPass(ref user, ref password) => vec![
@@ -75,9 +81,9 @@ impl GlobalContext {
             .args(auth_args)
             .arg(format!("-{}", self.network.clone()))
             .arg(format!("-txindex"))
-            .arg(format!("-rpcport={}", self.port))
-            .arg(format!("-zmqpubrawblock=tcp://127.0.0.1:{}", zmqpubrawblock_port))
-            .arg(format!("-zmqpubrawtx=tcp://127.0.0.1:{}", zmqpubrawtx_port))
+            .arg(format!("-rpcport={}", self.bitcoin_socket_address.port()))
+            .arg(format!("-zmqpubrawblock={}", zmqpubrawblock))
+            .arg(format!("-zmqpubrawtx={}", zmqpubrawtx))
             .spawn()?;
         thread::sleep(Duration::from_millis(2_000));
 
@@ -91,20 +97,25 @@ impl GlobalContext {
 
         const LAUNCH_ELECTRUMX_SERVER_DELAY_MS: u64 = 500;
 
+        if let Some(ref address) = self.electrum_socket_address {
+            assert!(address.ip().is_loopback());
+        }
+
         let electrs_process = Command::new("electrs")
             .arg("--jsonrpc-import")
-            .arg(format!("--cookie={}", self.cookie))
-            .arg(format!("--daemon-rpc-addr=127.0.0.1:{}", self.port))
+            .arg(format!("--cookie={}", self.electrum_auth))
+            .arg(format!("--daemon-rpc-addr={}", self.bitcoin_socket_address))
             .arg(format!("--network={}", self.network))
             .arg(format!("--db-dir={}", self.db_path))
-            .args(self.electrum_port.iter().map(|&port| format!("--electrum-rpc-addr=127.0.0.1:{}", port)))
+            .args(self.electrum_socket_address.iter().map(|&address| format!("--electrum-rpc-addr={}", address)))
             .spawn();
         thread::sleep(Duration::from_millis(LAUNCH_ELECTRUMX_SERVER_DELAY_MS));
         electrs_process
     }
 
     fn client(&self) -> Result<Client, BitcoinError> {
-        Client::new(self.bitcoind_url.clone(), self.bitcoind_auth.clone())
+        let url = format!("http://{}", self.bitcoin_socket_address);
+        Client::new(url, self.bitcoin_auth.clone())
     }
 
     pub fn default_context(&self, mode: WalletLibraryMode) -> Result<(WalletContext, Mnemonic), Box<dyn Error>> {
@@ -112,7 +123,7 @@ impl GlobalContext {
         let (wallet, mnemonic) = WalletWithTrustedFullNode::new(cfg, self.client()?, mode)?;
         Ok((WalletContext::Default {
             wallet: Box::new(wallet),
-            bitcoind: self.client()?,
+            bitcoin: self.client()?,
         }, mnemonic))
     }
 
@@ -124,10 +135,10 @@ impl GlobalContext {
             Network::Testnet => 60001,
             Network::Regtest => 60401,
         };
-        let electrum_rpc_port = self.electrum_port.unwrap_or(default_electrum_rpc_port);
+        let default_electrum_socket_address = format!("127.0.0.1:{}", default_electrum_rpc_port).parse().unwrap();
+        let electrum_socket_address = self.electrum_socket_address.unwrap_or(default_electrum_socket_address);
 
-        let address = format!("127.0.0.1:{}", electrum_rpc_port).parse().unwrap();
-        let (wallet, mnemonic) = ElectrumxWallet::new(address, cfg, mode)?;
+        let (wallet, mnemonic) = ElectrumxWallet::new(electrum_socket_address, cfg, mode)?;
         Ok((WalletContext::Electrs {
             wallet: Box::new(wallet),
             bitcoind: self.client()?,
@@ -138,7 +149,7 @@ impl GlobalContext {
 pub enum WalletContext {
     Default {
         wallet: Box<dyn Wallet>,
-        bitcoind: Client,
+        bitcoin: Client,
     },
     Electrs {
         wallet: Box<dyn Wallet>,
@@ -165,7 +176,7 @@ impl WalletContext {
         match self {
             &mut WalletContext::Default {
                 wallet: ref mut r,
-                bitcoind: _,
+                bitcoin: _,
             } => r,
             &mut WalletContext::Electrs {
                 wallet: ref mut r,
@@ -178,7 +189,7 @@ impl WalletContext {
         match self {
             &mut WalletContext::Default {
                 wallet: _,
-                bitcoind: ref mut r,
+                bitcoin: ref mut r,
             } => r,
             &mut WalletContext::Electrs {
                 wallet: _,
