@@ -30,6 +30,8 @@ pub struct WalletClientWrapper {
 
 impl WalletClientWrapper {
     pub fn new(port: u16) -> WalletClientWrapper {
+        use grpc::ClientStubExt;
+
         // let port = 50051;
         let client_conf = Default::default();
         let client = WalletClient::new_plain("127.0.0.1", port, client_conf).unwrap();

@@ -15,11 +15,10 @@
 extern crate grpc;
 extern crate tls_api;
 extern crate tls_api_native_tls;
-extern crate clap;
 extern crate wallet;
 extern crate rust_wallet_grpc;
 
-use clap::{Arg, App, SubCommand};
+use structopt::clap::{Arg, App, SubCommand};
 
 use wallet::account::AccountAddressType;
 use rust_wallet_grpc::{
