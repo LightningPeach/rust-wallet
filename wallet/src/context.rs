@@ -148,11 +148,11 @@ impl GlobalContext {
 
 pub enum WalletContext {
     Default {
-        wallet: Box<dyn Wallet>,
+        wallet: Box<dyn Send + Wallet>,
         bitcoin: Client,
     },
     Electrs {
-        wallet: Box<dyn Wallet>,
+        wallet: Box<dyn Send + Wallet>,
         bitcoind: Client,
     }
 }
@@ -172,7 +172,7 @@ impl WalletContext {
         }
     }
 
-    pub fn wallet_mut(&mut self) -> &mut Box<dyn Wallet> {
+    pub fn wallet_mut(&mut self) -> &mut Box<dyn Send + Wallet> {
         match self {
             &mut WalletContext::Default {
                 wallet: ref mut r,
@@ -195,6 +195,13 @@ impl WalletContext {
                 wallet: _,
                 bitcoind: ref mut r,
             } => r,
+        }
+    }
+
+    pub fn wallet(self) -> Box<dyn Send + Wallet> {
+        match self {
+            WalletContext::Default { wallet, .. } => wallet,
+            WalletContext::Electrs { wallet, .. } => wallet,
         }
     }
 }
