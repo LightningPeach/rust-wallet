@@ -24,6 +24,7 @@ before_install:
   - ls $HOME/.cargo/bin
 
 install:
+  - RUST_BACKTRACE=1 cargo run --bin gen_protos
   - RUST_BACKTRACE=1 cargo build --no-default-features --verbose
 
 script:
