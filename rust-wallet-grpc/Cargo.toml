@@ -12,10 +12,6 @@ path = "src/main.rs"
 name = "wallet-cli"
 path = "src/bin/client.rs"
 
-[[bin]]
-name = "gen_protos"
-path = "src/bin/gen_protos.rs"
-
 [dependencies.bitcoin]
 git = "https://github.com/LightningPeach/rust-bitcoin.git"
 features = ["use-serde"]
@@ -27,7 +23,6 @@ features = ["serde"]
 [dependencies]
 wallet = { path = "../wallet" }
 
-protoc-rust-grpc = "0.6.1"
 grpc = "0.6.1"
 protobuf = "2.8.1"
 tls-api = "0.1"
@@ -37,3 +32,6 @@ log = "0.4"
 hex = "0.3"
 structopt = "0.3"
 simple_logger = "1.0"
+
+[build-dependencies]
+protoc-rust-grpc = "0.6.1"
