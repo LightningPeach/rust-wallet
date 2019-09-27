@@ -29,7 +29,7 @@ wallet = { path = "../wallet" }
 
 protoc-rust-grpc = "0.6"
 grpc = "0.6"
-protobuf = "2.8"
+protobuf = "2.8.0"
 tls-api = "0.1"
 tls-api-native-tls = "0.1"
 bitcoin_rpc_client = { git = "https://github.com/LightningPeach/bitcoinrpc-rust-client.git", package = "bitcoincore-rpc" }
