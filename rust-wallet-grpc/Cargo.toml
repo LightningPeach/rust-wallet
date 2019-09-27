@@ -32,15 +32,8 @@ grpc = "0.6"
 protobuf = "2.8"
 tls-api = "0.1"
 tls-api-native-tls = "0.1"
-crossbeam = "0.7"
 bitcoin_rpc_client = { git = "https://github.com/LightningPeach/bitcoinrpc-rust-client.git", package = "bitcoincore-rpc" }
 log = "0.4"
 hex = "0.3"
 structopt = "0.3"
 simple_logger = "1.0"
-
-[dev-dependencies]
-tc_coblox_bitcoincore = { git = "https://github.com/rust-bitcoin-tools/testcontainers-rs.git", branch = "zmq_support" }
-testcontainers = { git = "https://github.com/rust-bitcoin-tools/testcontainers-rs.git", branch = "zmq_support" }
-simple_logger = "1.0"
-rand = "0.6"

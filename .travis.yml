@@ -2,24 +2,24 @@ sudo: required
 
 language: rust
 rust:
-- 1.33.0
-
-services:
-  - docker
+- 1.38.0
 
 addons:
   apt:
     packages:
       - libzmq3-dev
       - build-essential
+      - bitcoind
 
 before_install:
-  - docker pull lightningnetwork/bitcoind-alpine:0.16.1-r2
+  - sudo apt-add-repository ppa:bitcoin/bitcoin -y
+  - sudo apt-get update -qqmoving
+  - sudo apt-get install bitcoind -y
   - CURRENT_DIR=$(pwd) &&
     cd /tmp &&
     git clone https://github.com/romanz/electrs &&
     cd electrs &&
-    git checkout e49cef1bbcaf1710613dab4578d61b99c7dbd478 &&
+    git checkout a61e1b3b7a150c52188fc7c412233068c156c56b &&
     cargo install --debug --path . &&
     cd $CURRENT_DIR
   - ls $HOME/.cargo/bin
@@ -28,4 +28,6 @@ install:
   - RUST_BACKTRACE=1 cargo build --no-default-features --verbose
 
 script:
-  - RUST_BACKTRACE=1 cargo test -- --test-threads=1
+  - RUST_BACKTRACE=1 cargo test --package rust-wallet-grpc --all-features -- --test-threads=1
+  - RUST_BACKTRACE=1 cargo run --package wallet --bin environment &
+  - RUST_BACKTRACE=1 cargo test --package wallet --all-features -- --test-threads=1 --nocapture
