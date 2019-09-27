@@ -123,6 +123,15 @@ fn main() {
     };
     println!("{}", mnemonic.to_string());
 
-    server::launch_server_new(wallet_context.wallet(), config.rpc_port);
-    let _ = (bitcoind, electrs);
+    let (wallet, _) = wallet_context.destruct();
+    server::launch_server_new(wallet, config.rpc_port);
+
+    if let Some(mut process) = electrs {
+        log::info!("kill electrs");
+        match process.kill() { _ => () }
+    }
+    if let Some(mut process) = bitcoind {
+        log::info!("kill bitcoind");
+        match process.kill() { _ => () }
+    }
 }

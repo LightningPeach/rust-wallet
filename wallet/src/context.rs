@@ -141,7 +141,7 @@ impl GlobalContext {
         let (wallet, mnemonic) = ElectrumxWallet::new(electrum_socket_address, cfg, mode)?;
         Ok((WalletContext::Electrs {
             wallet: Box::new(wallet),
-            bitcoind: self.client()?,
+            bitcoin: self.client()?,
         }, mnemonic))
     }
 }
@@ -153,7 +153,7 @@ pub enum WalletContext {
     },
     Electrs {
         wallet: Box<dyn Send + Wallet>,
-        bitcoind: Client,
+        bitcoin: Client,
     }
 }
 
@@ -180,7 +180,7 @@ impl WalletContext {
             } => r,
             &mut WalletContext::Electrs {
                 wallet: ref mut r,
-                bitcoind: _,
+                bitcoin: _,
             } => r,
         }
     }
@@ -193,15 +193,15 @@ impl WalletContext {
             } => r,
             &mut WalletContext::Electrs {
                 wallet: _,
-                bitcoind: ref mut r,
+                bitcoin: ref mut r,
             } => r,
         }
     }
 
-    pub fn wallet(self) -> Box<dyn Send + Wallet> {
+    pub fn destruct(self) -> (Box<dyn Send + Wallet>, Client) {
         match self {
-            WalletContext::Default { wallet, .. } => wallet,
-            WalletContext::Electrs { wallet, .. } => wallet,
+            WalletContext::Default { wallet, bitcoin } => (wallet, bitcoin),
+            WalletContext::Electrs { wallet, bitcoin } => (wallet, bitcoin),
         }
     }
 }
